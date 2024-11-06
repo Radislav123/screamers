@@ -1,11 +1,6 @@
-import gc
-from typing import TextIO
-
 import arcade
 
-from simulator.creature import Creature
 from simulator.window import Window
-from simulator.world import World
 
 
 def simulate() -> None:
@@ -16,11 +11,8 @@ def simulate() -> None:
     try:
         window.start()
         arcade.run()
-        window.stop()
-    except Exception as error:
-        window.stop()
-        raise error
     finally:
+        window.stop()
         print(f"Симуляция окончена. Возраст мира: {window.world.age}")
 
 

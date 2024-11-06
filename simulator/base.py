@@ -1,29 +1,16 @@
 from arcade import Sprite
-from pyglet.math import Vec2
 
-from core.service.object import Object
+from core.service.object import Object, PhysicalObject
 
 
 class BaseSprite(Sprite, Object):
     pass
 
 
-class Base(Object):
+class Base(PhysicalObject):
     counter = 0
 
-    def __init__(self, position: Vec2) -> None:
-        self.position = position
-
-        self.id = self.counter
-        self.__class__.counter += 1
-
+    def __init__(self, position_x: int, position_y: int) -> None:
+        super().__init__(position_x, position_y)
+        self.resources = 0
         self.sprite = BaseSprite()
-
-    def start(self) -> None:
-        pass
-
-    def stop(self) -> None:
-        pass
-
-    def on_update(self) -> None:
-        pass

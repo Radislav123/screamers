@@ -1,48 +1,57 @@
 import datetime
 import random
-from enum import Enum
+from collections import defaultdict
 from typing import Iterable
 
+import arcade
 from arcade import SpriteList
-from pyglet.math import Vec2
 
 from core.service.object import Object
-from simulator.creature import Creature, CreatureSprite
-
 from simulator.base import Base, BaseSprite
-
-
-class Region:
-    pass
-
-
-class Tile(Enum):
-    Free = 0
-    Border = 1
+from simulator.creature import Creature, CreatureSprite
+from simulator.tile import Tile, TileProjection
 
 
 class Map(Object):
-    def __init__(
-            self,
-            center: Vec2,
-            creatures_sprites: Iterable[CreatureSprite],
-            bases_sprites: Iterable[BaseSprite]
-    ) -> None:
+    def __init__(self, center_x: int, center_y: int) -> None:
+        super().__init__()
+
         # соотносится с центром окна
-        self.center = center
+        self.center_x = center_x
+        self.center_y = center_y
+        # множитель размера отображения мира
+        self.coeff = 50
         self.creatures_sprites = SpriteList[CreatureSprite]()
+        self.bases_sprites = SpriteList[BaseSprite]()
+        # todo: convert borders to background?
+        self.tiles_borders = arcade.shape_list.ShapeElementList()
+
+    def prepare(
+            self,
+            creatures_sprites: Iterable[CreatureSprite],
+            bases_sprites: Iterable[BaseSprite],
+            tiles_projections: Iterable[TileProjection]
+    ) -> None:
         for sprite in creatures_sprites:
             self.creatures_sprites.append(sprite)
-        self.bases_sprites = SpriteList[BaseSprite]()
         for sprite in bases_sprites:
             self.bases_sprites.append(sprite)
-        # todo: write it
-        # todo: convert border sprites to 1 sprite or background?
-        self.border_sprites = SpriteList(True)
+        for projection in tiles_projections:
+            self.tiles_borders.append(projection.border)
 
 
 class World(Object):
-    def __init__(self, radius: int, population: int, bases_amount: int, center: Vec2, seed: int = None) -> None:
+    def __init__(
+            self,
+            radius: int,
+            population: int,
+            bases_amount: int,
+            center_x: int,
+            center_y: int,
+            seed: int = None
+    ) -> None:
+        super().__init__()
+
         if seed is None:
             seed = datetime.datetime.now().timestamp()
         self.seed = seed
@@ -51,25 +60,35 @@ class World(Object):
         random.seed(self.seed)
 
         self.age = 0
-        self.center = Vec2(0, 0)
+        self.center_x = 0
+        self.center_y = 0
         # в тайлах
         self.radius = radius
-        self.point_to_region: dict[Vec2, Region] = {}
 
         self.creatures: dict[int, Creature] = {}
         self.bases: dict[int, Base] = {}
-        self.tiles: dict[Vec2, Creature | Tile] = {}
+        self.tiles: dict[int, dict[int, Creature | Base | Tile]] = defaultdict(dict)
+        self.map = Map(center_x, center_y)
         self.prepare()
 
-        self.map = Map(center, (x.sprite for x in self.creatures.values()), (x.sprite for x in self.bases.values()))
+        creature_sprites = (x.sprite for x in self.creatures.values())
+        bases_sprites = (x.sprite for x in self.bases.values())
+        tiles_projections = (y.projection for x in self.tiles.values() for y in x.values())
+        self.map.prepare(creature_sprites, bases_sprites, tiles_projections)
 
     def start(self) -> None:
         for _ in range(self.population):
-            # todo: get creatures random free tiles
-            creature = Creature(Vec2(0, 0))
+            # todo: get to creatures random free tiles?
+            creature = Creature(0, 0)
             self.creatures[creature.id] = creature
-            self.tiles[creature.position] = creature
+            self.tiles[creature.position_x][creature.position_y] = creature
             creature.start()
+        for _ in range(self.bases_amount):
+            # todo: get to bases random free tiles?
+            base = Base(0, 0)
+            self.bases[base.id] = base
+            self.tiles[base.position_x][base.position_y] = base
+            base.start()
 
     def stop(self) -> None:
         for creature in self.creatures.values():
@@ -87,12 +106,11 @@ class World(Object):
 
     # https://www.redblobgames.com/grids/hexagons/#map-storage
     def prepare(self) -> None:
-        lower_border = self.radius - 1
-        upper_border = self.radius * 2 - 1
-        for x in range(upper_border):
-            for y in range(upper_border):
-                x_y = x + y
-                if lower_border < x_y < upper_border:
-                    self.tiles[Vec2(x, y)] = Tile.Free
-                elif x_y == lower_border or x_y == upper_border:
-                    self.tiles[Vec2(x, y)] = Tile.Border
+        x_start = -self.radius
+        x_stop = self.radius
+        y_start = -self.radius
+        y_stop = self.radius
+        for x in range(x_start, x_stop + 1):
+            for y in range(y_start, y_stop + 1):
+                if abs(x + y) <= self.radius:
+                    self.tiles[x][y] = Tile(x, y, self.map.center_x, self.map.center_y, self.map.coeff)

@@ -1,4 +1,3 @@
-import dataclasses
 import enum
 import time
 from collections import defaultdict, deque
@@ -7,33 +6,36 @@ from typing import Callable, Iterator
 
 import arcade
 import arcade.gui
+from arcade import color, uicolor
+from arcade.types import Color
 from matplotlib import pyplot
 
-from core.service import ObjectDescriptionReader
-from evolution import settings
+from core.service.object import Object
 from simulator.creature import Creature
 from simulator.world import World
-from simulator.world_resource import Resources
 
 
-@dataclasses.dataclass
-class WindowDescriptor:
-    name: str
-    tab_update_period: int
-    world_age_tab_update_period: int
-    tps_tab_update_period: int
-    resources_tab_update_period: int
-    overlay_update_period: int
-    timings_length: int
+class TextTab(arcade.gui.UIFlatButton, Object):
+    default_style = {
+        "normal": arcade.gui.UIFlatButton.UIStyle(
+            bg = color.BLACK
+        ),
+        "hover": arcade.gui.UIFlatButton.UIStyle(
+            font_color = color.WHITE,
+            bg = Color(*(50 for _ in range(3))),
+            border = uicolor.GRAY_CONCRETE
+        ),
+        "press": arcade.gui.UIFlatButton.UIStyle(
+            font_color = uicolor.DARK_BLUE_MIDNIGHT_BLUE,
+            bg = uicolor.WHITE_CLOUDS,
+            border = uicolor.GRAY_CONCRETE
+        ),
+        "disabled": arcade.gui.UIFlatButton.UIStyle(
+            font_color = uicolor.WHITE_SILVER,
+            bg = uicolor.GRAY_ASBESTOS
+        )
+    }
 
-
-window_descriptor: WindowDescriptor = ObjectDescriptionReader[WindowDescriptor]().read_folder_to_list(
-    settings.WINDOW_DESCRIPTIONS_PATH,
-    WindowDescriptor
-)[0]
-
-
-class TextTab(arcade.gui.UIFlatButton):
     class State(enum.Enum):
         NOT_PRESSED = 0
         PRESSED = 1
@@ -58,17 +60,16 @@ class TextTab(arcade.gui.UIFlatButton):
             # количество тиков между обновлением текста
             self.update_period = update_period
 
-            color = (0, 0, 0)
-            super().__init__(tab.text, 0, 0, color = color, *args, **kwargs)
+            super().__init__(tab.text, 0, 0, color = color.BLACK, *args, **kwargs)
 
         def set_position(self) -> None:
-            offset_x = 5
-            offset_y = 8
+            offset_x = -10
+            offset_y = -5
             if self.tab.corner.index in [0, 1]:
                 start_x = self.tab.rect.x + self.tab.width + offset_x
                 anchor_x = "left"
             else:
-                start_x = self.tab.rect.x - offset_x
+                start_x = self.tab.rect.x - offset_x + 3 * offset_x
                 anchor_x = "right"
             start_y = self.tab.rect.y + offset_y
             anchor_y = "baseline"
@@ -78,8 +79,9 @@ class TextTab(arcade.gui.UIFlatButton):
             self.anchor_x = anchor_x
             self.anchor_y = anchor_y
 
-    def __init__(self, text: Callable[..., str], update_period: int) -> None:
-        super().__init__()
+    def __init__(self, text: Callable[[], str], update_period: int) -> None:
+        # text передается для инициализации ui_label
+        super().__init__(text = str(self.State.PRESSED), style = self.default_style)
 
         self.update_period = update_period
         self.state: TextTab.State | None = None
@@ -111,7 +113,7 @@ class TextTab(arcade.gui.UIFlatButton):
         self.text = str(self.state)
 
 
-class DrawGraphsTab(TextTab):
+class DrawGraphsTab(TextTab, Object):
     def set(self) -> None:
         super().set()
         arcade.enable_timings()
@@ -125,7 +127,7 @@ class DrawGraphsTab(TextTab):
             pass
 
 
-class TextTabContainer:
+class TextTabContainer(Object):
     class Corner(arcade.gui.UIAnchorLayout):
         children: list[TextTab]
 
@@ -156,6 +158,7 @@ class TextTabContainer:
             return result
 
     def __init__(self, window: "Window") -> None:
+        super().__init__()
         self.window = window
         # 00 - левый нижний угол (corners[0])
         # 01 - левый верхний угол (corners[1])
@@ -194,11 +197,11 @@ class TextTabContainer:
             if self.window.world.age % update_period == 0:
                 for tab in tabs:
                     if tab.state == tab.State.PRESSED:
-                        # noinspection PyProtectedMember
+                        # noinspection PyProtectedMember 
                         tab.tab_label.text = tab.tab_label._text()
 
 
-class UIManager(arcade.gui.UIManager):
+class UIManager(arcade.gui.UIManager, Object):
     def add_tabs(self, tabs: TextTabContainer) -> TextTabContainer:
         for corner in tabs.corners:
             self.add(corner)
@@ -212,7 +215,7 @@ class UIManager(arcade.gui.UIManager):
                 tab.tab_label.set_position()
 
 
-class PerformanceGraph(arcade.PerfGraph):
+class PerformanceGraph(arcade.PerfGraph, Object):
     def __init__(self, window: "Window", *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -298,20 +301,15 @@ class PerformanceGraph(arcade.PerfGraph):
             arcade.draw_line_strip(point_list, self.line_color)
 
 
-class Window(arcade.Window):
+class Window(arcade.Window, Object):
     # desired_tps = int(1 / update_rate)
     # update_rate = 1 / tps
     desired_tps: int
-    # все ресурсы = ресурсы у существ + ресурсы на карте
+    creatures_resources_tab: TextTab
+    bases_resources_tab: TextTab
     world_resources_tab: TextTab
-    # ресурсы на карте
-    map_resources_tab: TextTab
-    # ресурсы у существ = ресурсы в хранилищах существ + ресурсы в телах существ
-    creature_resources_tab: TextTab
     # отрисовка сетки мира
-    draw_tile_borders_tab: TextTab
-    # режим ресурсов
-    resources_overlay_tab: TextTab
+    draw_tiles_borders_tab: TextTab
     draw_creatures_tab: TextTab
     draw_graphs_tab: TextTab
     creature_tps_statistics: [Creature, int] = defaultdict(list)
@@ -321,11 +319,11 @@ class Window(arcade.Window):
 
         self.world: World | None = None
         self.tab_container = TextTabContainer(self)
-        self.set_tps(settings.MAX_TPS)
-        self.tps = settings.MAX_TPS
-        self.map_resources = Resources[int]()
-        self.creature_resources = Resources[int]()
-        self.world_resources = Resources[int]()
+        self.set_tps(self.settings.MAX_TPS)
+        self.tps = self.settings.MAX_TPS
+        self.creatures_resources = 0
+        self.bases_resources = 0
+        self.world_resources = 0
 
         self.ui_manager = UIManager(self)
         self.graphs = arcade.SpriteList()
@@ -333,11 +331,10 @@ class Window(arcade.Window):
         background_color = (255, 255, 255, 255)
         arcade.set_background_color(background_color)
 
-        self.timings = defaultdict(lambda: deque(maxlen = window_descriptor.timings_length))
+        self.timings = defaultdict(lambda: deque(maxlen = self.settings.TIMINGS_LENGTH))
 
     def start(self) -> None:
-        center = (self.width // 2, self.height // 2)
-        self.world = World(center)
+        self.world = World(3, 100, 2, self.width // 2, self.height // 2)
         self.world.start()
 
         self.construct_tabs()
@@ -392,7 +389,7 @@ class Window(arcade.Window):
         # сохранение статистики
         folder = f"statistics/creatures_tps"
         Path(folder).mkdir(parents = True, exist_ok = True)
-        pyplot.savefig(f"{folder}/{self.world.id}.png")
+        pyplot.savefig(f"{folder}/plot.png")
 
     def construct_graphs(self) -> None:
         # ((graph_name, is_custom),..)
@@ -423,63 +420,43 @@ class Window(arcade.Window):
         # правый верхний угол
         # возраст мира
         self.tab_container.corners[3].add(
-            TextTab(lambda: self.world.age, window_descriptor.world_age_tab_update_period)
+            TextTab(lambda: self.world.age, self.settings.WORLD_AGE_TAB_UPDATE_PERIOD)
         )
         # счетчик tps
         self.tab_container.corners[3].add(
             TextTab(
                 lambda: f"tps/желаемые tps: {self.tps} / {self.desired_tps}",
-                window_descriptor.tps_tab_update_period
+                self.settings.TPS_TAB_UPDATE_PERIOD
             )
         )
         # отображение графиков
         self.draw_graphs_tab = self.tab_container.corners[3].add(
-            DrawGraphsTab(lambda: "Отображать графики", window_descriptor.tps_tab_update_period)
+            DrawGraphsTab(lambda: "Отображать графики", self.settings.TPS_TAB_UPDATE_PERIOD)
         )
         self.draw_graphs_tab.reset()
 
         # правый нижний угол
-        self.tab_container.corners[2].add(
-            TextTab(
-                lambda: f"Появилось: {Creature.birth_counter}, умерло: {Creature.death_counter}",
-                window_descriptor.tab_update_period
-            )
-        )
-        self.tab_container.corners[2].add(
-            TextTab(
-                lambda: f"Сейчас существ: {Creature.birth_counter - Creature.death_counter}",
-                window_descriptor.tab_update_period
-            )
-        )
 
         # левый верхний угол
         self.world_resources_tab = self.tab_container.corners[1].add(
-            TextTab(lambda: f"Ресурсы в мире: {self.world_resources}", window_descriptor.resources_tab_update_period)
+            TextTab(lambda: f"Ресурсы в мире: {self.world_resources}", self.settings.RESOURCES_TAB_UPDATE_PERIOD)
         )
-        self.map_resources_tab = self.tab_container.corners[1].add(
-            TextTab(lambda: f"Ресурсы на карте: {self.map_resources}", window_descriptor.resources_tab_update_period)
+        self.bases_resources_tab = self.tab_container.corners[1].add(
+            TextTab(lambda: f"Ресурсы на карте: {self.bases_resources}", self.settings.RESOURCES_TAB_UPDATE_PERIOD)
         )
-        self.creature_resources_tab = self.tab_container.corners[1].add(
-            TextTab(
-                lambda: f"Ресурсы существ: {self.creature_resources}",
-                window_descriptor.resources_tab_update_period
-            )
+        self.creatures_resources_tab = self.tab_container.corners[1].add(
+            TextTab(lambda: f"Ресурсы существ: {self.creatures_resources}", self.settings.RESOURCES_TAB_UPDATE_PERIOD)
         )
 
         # левый нижний угол
-        # режим отображения ресурсов
-        self.resources_overlay_tab = self.tab_container.corners[0].add(
-            TextTab(lambda: "Отображать количество ресурсов", window_descriptor.overlay_update_period)
-        )
-        self.resources_overlay_tab.reset()
         # отрисовка сетки
-        self.draw_tile_borders_tab = self.tab_container.corners[0].add(
-            TextTab(lambda: "Показывать сетку мира", window_descriptor.overlay_update_period)
+        self.draw_tiles_borders_tab = self.tab_container.corners[0].add(
+            TextTab(lambda: "Показывать сетку мира", self.settings.OVERLAY_UPDATE_PERIOD)
         )
-        self.draw_tile_borders_tab.reset()
+        self.draw_tiles_borders_tab.reset()
         # показывать ли существ
         self.draw_creatures_tab = self.tab_container.corners[0].add(
-            TextTab(lambda: "Показывать существ", window_descriptor.overlay_update_period)
+            TextTab(lambda: "Показывать существ", self.settings.OVERLAY_UPDATE_PERIOD)
         )
 
         self.count_resources()
@@ -488,21 +465,11 @@ class Window(arcade.Window):
         self.ui_manager.add_tabs(self.tab_container)
 
     def count_resources(self) -> None:
-        if self.map_resources_tab or self.world_resources_tab:
-            self.map_resources = Resources[int]()
-            # чтобы порядок ресурсов не менялся
-            self.map_resources.fill_all(0)
-            self.map_resources += Resources[int].sum(x.resources for x in self.world.all_tiles)
+        if self.bases_resources_tab or self.world_resources_tab:
+            self.bases_resources = sum((x.resources for x in self.world.bases.values()))
 
-        if self.creature_resources_tab or self.world_resources_tab:
-            self.creature_resources = Resources[int]()
-            # чтобы порядок ресурсов не менялся
-            self.creature_resources.fill_all(0)
-            self.creature_resources += Resources[int].sum(x.remaining_resources for x in self.world.creatures) + \
-                                       Resources[int].sum(x.storage.current for x in self.world.creatures)
-
-        if self.world_resources_tab:
-            self.world_resources = self.map_resources + self.creature_resources
+        if self.creatures_resources_tab or self.world_resources_tab:
+            self.creatures_resources = sum((x.resources for x in self.world.creatures.values()))
 
     def count_statistics(self, start: float, finish: float) -> None:
         self.timings["on_update"].append(finish - start)
@@ -518,17 +485,11 @@ class Window(arcade.Window):
     def on_draw(self) -> None:
         self.clear()
 
-        self.world.border_tiles.draw()
-        if self.resources_overlay_tab:
-            self.world.map_tiles.draw()
-        if self.draw_tile_borders_tab:
-            self.world.map_tile_borders.draw()
+        if self.draw_tiles_borders_tab:
+            self.world.map.tiles_borders.draw()
 
         if self.draw_creatures_tab:
-            # можно отрисовывать всех существ по отдельности, итерируясь по self.creatures,
-            # что позволит переопределить метод draw существа
-            # (иначе, переопределение этого метода не влияет на отрисовку)
-            self.world.creatures.draw()
+            self.world.map.creatures_sprites.draw()
 
         self.ui_manager.draw()
         self.tab_container.draw_all()
@@ -540,39 +501,21 @@ class Window(arcade.Window):
         start = time.time()
         try:
             self.world.on_update()
-            if self.resources_overlay_tab and self.world.age % window_descriptor.overlay_update_period == 0:
-                self.update_resources_overlay()
             self.tab_container.update_all()
         except Exception as error:
             error.window = self
             raise error
         finally:
-            if self.world.age % window_descriptor.resources_tab_update_period == 0:
+            if self.world.age % self.settings.TAB_UPDATE_PERIOD == 0:
                 self.count_resources()
             finish = time.time()
             self.count_statistics(start, finish)
-
-    def update_resources_overlay(self) -> None:
-        resources = {}
-        maximum = 0
-        minimum = 1024**16
-        for tile in self.world.map_tiles:
-            resources_sum = sum(tile.resources.values())
-            resources[tile] = resources_sum
-            if resources_sum > maximum:
-                maximum = resources_sum
-            if resources_sum < minimum:
-                minimum = resources_sum
-        for tile in self.world.map_tiles:
-            # gradient = (1 - (resources[tile] - minimum) / (maximum - minimum)) * 255
-            gradient = (1 - resources[tile] / maximum) * 255
-            tile.color = (gradient, gradient, gradient, 255)
 
     def set_tps(self, tps: int) -> None:
         self.desired_tps = tps
         self.set_update_rate(1 / tps)
 
-    def on_mouse_press(self, x, y, button, modifiers) -> None:
+    def on_mouse_press(self, x: int, y: int, button: int, modifiers: int) -> None:
         """Выводит в консоль положение курсора."""
 
         print(f"x: {x}, y: {y}")

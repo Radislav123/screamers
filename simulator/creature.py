@@ -1,30 +1,16 @@
 from arcade import Sprite
-from pyglet.math import Vec2
 
-from core.service.object import Object
+from core.service.object import Object, PhysicalObject
 
 
 class CreatureSprite(Sprite, Object):
     pass
 
 
-class Creature(Object):
+class Creature(PhysicalObject):
     scream_radius = 10
-    counter = 0
 
-    def __init__(self, position: Vec2) -> None:
-        self.position = position
-
-        self.id = self.counter
-        self.__class__.counter += 1
-
+    def __init__(self, position_x: int, position_y: int) -> None:
+        super().__init__(position_x, position_y)
+        self.resources = 0
         self.sprite = CreatureSprite()
-
-    def start(self) -> None:
-        pass
-
-    def stop(self) -> None:
-        pass
-
-    def on_update(self) -> None:
-        pass

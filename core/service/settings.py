@@ -11,3 +11,11 @@ class Settings(Singleton):
         self.LOG_FOLDER = "logs"
         self.CONSOLE_LOG_LEVEL = logging.DEBUG
         self.FILE_LOG_LEVEL = logging.DEBUG
+
+        self.MAX_TPS = 1000
+        self.TIMINGS_LENGTH = 100
+        self.TAB_UPDATE_PERIOD = 10
+        self.WORLD_AGE_TAB_UPDATE_PERIOD = 1
+        self.TPS_TAB_UPDATE_PERIOD = 5
+        self.RESOURCES_TAB_UPDATE_PERIOD = 100
+        self.OVERLAY_UPDATE_PERIOD = 50
