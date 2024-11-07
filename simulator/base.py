@@ -1,9 +1,9 @@
 from arcade import Sprite
 
-from core.service.object import Object, PhysicalObject
+from core.service.object import PhysicalObject, ProjectionObject
 
 
-class BaseSprite(Sprite, Object):
+class BaseSprite(Sprite, ProjectionObject):
     pass
 
 
