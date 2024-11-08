@@ -2,7 +2,9 @@ import math
 from typing import TYPE_CHECKING
 
 import arcade
+from arcade import color
 from arcade.shape_list import Shape
+from arcade.types import Color, RGBA
 
 from core.service.object import PhysicalObject, ProjectionObject
 
@@ -13,7 +15,7 @@ if TYPE_CHECKING:
 
 
 class TileProjection(ProjectionObject):
-    border_color: tuple[int, int, int, int]
+    border_color: Color | RGBA
     overlap_distance: float
     border_width: float
     radius: float
@@ -31,10 +33,9 @@ class TileProjection(ProjectionObject):
         self.tile_position_x = position_x
         self.tile_position_y = position_y
 
-    def init(self, offset_x: float, offset_y: float, coeff: float, tilt: float) -> None:
+    def init(self, offset_x: float, offset_y: float, coeff: float, tilt_coeff: float) -> None:
         sqrt = math.sqrt(3)
-        tilt_coeff = math.sin(math.radians(tilt))
-        self.border_color = (100, 100, 100, 255)
+        self.border_color = color.DIM_GRAY
 
         self.overlap_distance = 0 * coeff
         self.border_width = 1

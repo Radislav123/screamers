@@ -15,7 +15,8 @@ class Object:
         instance.logger = Logger(cls.__name__)
         return instance
 
-    def __init__(self) -> None:
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.id = self.counter
         self.__class__.counter += 1
 
@@ -30,8 +31,8 @@ class Object:
 
 
 class PhysicalObject(Object):
-    def __init__(self, position_x: int, position_y: int) -> None:
-        super().__init__()
+    def __init__(self, position_x: int, position_y: int, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.position_x = position_x
         self.position_y = position_y
         self.position = Vec2(self.position_x, self.position_y)
@@ -41,8 +42,8 @@ class PhysicalObject(Object):
 
 
 class ProjectionObject(Object):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.inited = False
 
     def on_draw(self, *args, **kwargs) -> Any:

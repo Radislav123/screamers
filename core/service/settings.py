@@ -19,3 +19,6 @@ class Settings(Singleton):
         self.TPS_TAB_UPDATE_PERIOD = 5
         self.RESOURCES_TAB_UPDATE_PERIOD = 100
         self.OVERLAY_UPDATE_PERIOD = 50
+
+        self.RESOURCES_FOLDER = "resources"
+        self.IMAGES_FOLDER = f"{self.RESOURCES_FOLDER}/images"

@@ -7,7 +7,7 @@ from typing import Callable, Iterator
 import arcade
 import arcade.gui
 from arcade import color, uicolor
-from arcade.future.input import Keys, MouseButtons
+from arcade.future.input import MouseButtons
 from arcade.types import Color
 from matplotlib import pyplot
 
@@ -338,6 +338,11 @@ class Window(arcade.Window, Object):
     def start(self) -> None:
         self.world = World(30, 100, 2, self.width, self.height)
         self.world.start()
+
+        creature_sprites = (x.sprite for x in self.world.creatures)
+        bases_sprites = (x.sprite for x in self.world.bases)
+        tiles_projections = (y.projection for x in self.world.tiles.values() for y in x.values())
+        self.world.map.start(creature_sprites, bases_sprites, tiles_projections)
 
         self.construct_tabs()
         self.construct_graphs()

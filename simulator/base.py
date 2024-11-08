@@ -1,16 +1,14 @@
-from arcade import Sprite
+from arcade import color
 
-from core.service.object import PhysicalObject, ProjectionObject
-
-
-class BaseSprite(Sprite, ProjectionObject):
-    pass
+from simulator.world_object import WorldObject, WorldObjectSprite
 
 
-class Base(PhysicalObject):
-    counter = 0
+class BaseSprite(WorldObjectSprite):
+    color = color.RED_BROWN
+
+
+class Base(WorldObject):
+    sprite_class = BaseSprite
 
     def __init__(self, position_x: int, position_y: int) -> None:
         super().__init__(position_x, position_y)
-        self.resources = 0
-        self.sprite = BaseSprite()

@@ -1,10 +1,11 @@
+import copy
 import datetime
+import math
 import random
 from collections import defaultdict
 from typing import Any, Iterable
 
 import arcade
-from arcade import SpriteList
 
 from core.service.object import Object, ProjectionObject
 from simulator.base import Base, BaseSprite
@@ -17,6 +18,7 @@ class Map(ProjectionObject):
     coeff: float
     # наклон, в градусах
     tilt: float
+    tilt_coeff: float
     # поворот, в градусах
     rotation: float
 
@@ -35,48 +37,53 @@ class Map(ProjectionObject):
         self.min_tilt = 45
         self.max_tilt = 90
 
-        self.creature_sprites = SpriteList[CreatureSprite]()
-        self.base_sprites = SpriteList[BaseSprite]()
-        self.tile_projections = set[TileProjection]()
-        # todo: convert borders to background?
+        self.bases = set[BaseSprite]()
+        self.creatures = set[CreatureSprite]()
+        self.tiles = set[TileProjection]()
+        self.base_polygons = arcade.shape_list.ShapeElementList()
+        self.creature_polygons = arcade.shape_list.ShapeElementList()
         self.tile_borders = arcade.shape_list.ShapeElementList()
 
     def init(self) -> Any:
-        for sprite in self.creature_sprites:
-            if not sprite.inited:
-                sprite.init()
-        for sprite in self.base_sprites:
-            if not sprite.inited:
-                sprite.init()
-        for projection in self.tile_projections:
+        for projection in self.tiles:
             if not projection.inited:
-                projection.init(self.offset_x, self.offset_y, self.coeff, self.tilt)
+                projection.init(self.offset_x, self.offset_y, self.coeff, self.tilt_coeff)
                 self.tile_borders.append(projection.border)
+        for projection in self.bases:
+            if not projection.inited:
+                projection.init()
+                self.base_polygons.append(projection.polygon)
+        for projection in self.creatures:
+            if not projection.inited:
+                projection.init()
+                self.creature_polygons.append(projection.polygon)
 
         self.inited = True
 
-    def prepare(
+    def start(
             self,
-            creatures_sprites: Iterable[CreatureSprite],
-            bases_sprites: Iterable[BaseSprite],
-            tiles_projections: Iterable[TileProjection]
+            creatures: Iterable[CreatureSprite],
+            bases: Iterable[BaseSprite],
+            tiles: Iterable[TileProjection]
     ) -> None:
-        for sprite in creatures_sprites:
-            self.creature_sprites.append(sprite)
-        for sprite in bases_sprites:
-            self.base_sprites.append(sprite)
-        for projection in tiles_projections:
-            self.tile_projections.add(projection)
+        for projection in bases:
+            self.bases.add(projection)
+        for projection in creatures:
+            self.creatures.add(projection)
+        for projection in tiles:
+            self.tiles.add(projection)
             if projection.inited:
                 self.tile_borders.append(projection.border)
 
     def reset(self) -> None:
-        for sprite in self.creature_sprites:
+        for sprite in self.bases:
             sprite.inited = False
-        for sprite in self.base_sprites:
+        for sprite in self.creatures:
             sprite.inited = False
-        for projection in self.tile_projections:
+        for projection in self.tiles:
             projection.inited = False
+        self.base_polygons.clear()
+        self.creature_polygons.clear()
         self.tile_borders.clear()
         self.inited = False
 
@@ -84,10 +91,10 @@ class Map(ProjectionObject):
         if not self.inited:
             self.init()
 
-        if draw_creatures:
-            self.creature_sprites.draw()
         if draw_bases:
-            self.base_sprites.draw()
+            self.base_polygons.draw()
+        if draw_creatures:
+            self.creature_polygons.draw()
         if draw_tiles:
             self.tile_borders.draw()
 
@@ -112,6 +119,7 @@ class Map(ProjectionObject):
         # todo: вызов данного метода должен перерисовывать карту так, чтобы она целиком помещалась на экране
         self.coeff = 10
         self.tilt = 90
+        self.tilt_coeff = 1
         self.rotation = 0
 
     def change_offset(self, offset_x: int, offset_y: int) -> None:
@@ -120,8 +128,9 @@ class Map(ProjectionObject):
         self.reset()
 
     def change_tilt(self, offset: int) -> None:
-        tilt_coeff = 1 / 2
-        self.tilt = max(min(self.tilt + offset * tilt_coeff, self.max_tilt), self.min_tilt)
+        coeff = 1 / 2
+        self.tilt = max(min(self.tilt + offset * coeff, self.max_tilt), self.min_tilt)
+        self.tilt_coeff = math.sin(math.radians(self.tilt))
         self.reset()
 
     def change_rotation(self, offset: int) -> None:
@@ -158,27 +167,29 @@ class World(Object):
         self.creatures = set[Creature]()
         self.bases = set[Base]()
         self.tiles: dict[int, dict[int, Tile]] = defaultdict(dict)
+        self.tile_set = set[Tile]()
         self.map = Map(map_width, map_height)
         self.prepare()
 
-        creature_sprites = (x.sprite for x in self.creatures)
-        bases_sprites = (x.sprite for x in self.bases)
-        tiles_projections = (y.projection for x in self.tiles.values() for y in x.values())
-        self.map.prepare(creature_sprites, bases_sprites, tiles_projections)
-
     def start(self) -> None:
-        for _ in range(self.population):
-            # todo: get to creatures random free tiles?
-            creature = Creature(0, 0)
-            self.creatures.add(creature)
-            self.tiles[creature.position_x][creature.position_y].object = creature
-            creature.start()
-        for _ in range(self.bases_amount):
-            # todo: get to bases random free tiles?
+        tiles = copy.copy(self.tile_set)
+        base_tiles = random.sample(list(tiles), self.bases_amount)
+        for tile in base_tiles:
             base = Base(0, 0)
             self.bases.add(base)
-            self.tiles[base.position_x][base.position_y].object = base
+            tile.object = base
+            base.sprite.tile_projection = tile.projection
             base.start()
+
+        bases = list(self.bases)
+        tiles.difference_update(base_tiles)
+        creature_tiles = random.sample(list(tiles), self.population)
+        for tile in creature_tiles:
+            creature = Creature(0, 0, bases)
+            self.creatures.add(creature)
+            tile.object = creature
+            creature.sprite.tile_projection = tile.projection
+            creature.start()
 
     def stop(self) -> None:
         for creature in self.creatures:
@@ -203,4 +214,6 @@ class World(Object):
         for x in range(x_start, x_stop + 1):
             for y in range(y_start, y_stop + 1):
                 if abs(x + y) <= self.radius:
-                    self.tiles[x][y] = Tile(x, y)
+                    tile = Tile(x, y)
+                    self.tiles[x][y] = tile
+                    self.tile_set.add(tile)
