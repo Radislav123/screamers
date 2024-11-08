@@ -7,6 +7,7 @@ from typing import Callable, Iterator
 import arcade
 import arcade.gui
 from arcade import color, uicolor
+from arcade.future.input import Keys, MouseButtons
 from arcade.types import Color
 from matplotlib import pyplot
 
@@ -335,7 +336,7 @@ class Window(arcade.Window, Object):
         self.timings = defaultdict(lambda: deque(maxlen = self.settings.TIMINGS_LENGTH))
 
     def start(self) -> None:
-        self.world = World(30, 100, 2, self.width // 2, self.height // 2)
+        self.world = World(30, 100, 2, self.width, self.height)
         self.world.start()
 
         self.construct_tabs()
@@ -518,7 +519,13 @@ class Window(arcade.Window, Object):
         print(f"x: {x}, y: {y}")
 
     def on_mouse_drag(self, x: int, y: int, dx: int, dy: int, buttons: int, modifiers: int) -> bool | None:
-        self.world.map.move(dx, dy)
+        if buttons & MouseButtons.LEFT.value:
+            self.world.map.change_offset(dx, dy)
+        if buttons & MouseButtons.RIGHT.value:
+            if dx:
+                self.world.map.change_rotation(dx)
+            if dy:
+                self.world.map.change_tilt(dy)
         return None
 
     def on_mouse_scroll(self, x: int, y: int, scroll_x: int, scroll_y: int) -> bool | None:

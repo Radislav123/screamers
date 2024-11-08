@@ -31,17 +31,18 @@ class TileProjection(ProjectionObject):
         self.tile_position_x = position_x
         self.tile_position_y = position_y
 
-    def init(self, map_offset_x: int, map_offset_y: int, map_coeff: int) -> None:
+    def init(self, offset_x: float, offset_y: float, coeff: float, tilt: float) -> None:
         sqrt = math.sqrt(3)
+        tilt_coeff = math.sin(math.radians(tilt))
         self.border_color = (100, 100, 100, 255)
 
-        self.overlap_distance = 0 * map_coeff
+        self.overlap_distance = 0 * coeff
         self.border_width = 1
-        self.radius = map_coeff / 2
+        self.radius = coeff / 2
         self.width = sqrt * self.radius + self.overlap_distance
-        self.height = 2 * self.radius + self.overlap_distance
-        self.position_x = (sqrt * self.tile_position_x + sqrt / 2 * self.tile_position_y) * self.radius + map_offset_x
-        self.position_y = (3 / 2 * self.tile_position_y) * self.radius + map_offset_y
+        self.height = (2 * self.radius + self.overlap_distance) * tilt_coeff
+        self.position_x = (sqrt * self.tile_position_x + sqrt / 2 * self.tile_position_y) * self.radius + offset_x
+        self.position_y = (3 / 2 * self.tile_position_y) * self.radius * tilt_coeff + offset_y
 
         width_offset = self.width / 2
         height_offset = self.height / 2

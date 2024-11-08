@@ -13,18 +13,28 @@ from simulator.tile import Tile, TileProjection
 
 
 class Map(ProjectionObject):
-    def __init__(self, center_x: int, center_y: int) -> None:
+    # множитель размера отображения мира
+    coeff: float
+    # наклон, в градусах
+    tilt: float
+    # поворот, в градусах
+    rotation: float
+
+    def __init__(self, width: int, height: int) -> None:
         super().__init__()
 
         # соотносится с центром окна
-        self.center_x = center_x
-        self.center_y = center_y
+        self.center_x = width // 2
+        self.center_y = height // 2
         self.offset_x = self.center_x
         self.offset_y = self.center_y
-        # множитель размера отображения мира
-        self.coeff = 10
+
+        self.center_on_window(width, height)
         self.min_coeff = 1
         self.max_coeff = 100
+        self.min_tilt = 45
+        self.max_tilt = 90
+
         self.creature_sprites = SpriteList[CreatureSprite]()
         self.base_sprites = SpriteList[BaseSprite]()
         self.tile_projections = set[TileProjection]()
@@ -40,7 +50,7 @@ class Map(ProjectionObject):
                 sprite.init()
         for projection in self.tile_projections:
             if not projection.inited:
-                projection.init(self.offset_x, self.offset_y, self.coeff)
+                projection.init(self.offset_x, self.offset_y, self.coeff, self.tilt)
                 self.tile_borders.append(projection.border)
 
         self.inited = True
@@ -98,9 +108,25 @@ class Map(ProjectionObject):
 
         self.reset()
 
-    def move(self, offset_x: int, offset_y: int) -> None:
+    def center_on_window(self, width: float, height: float) -> None:
+        # todo: вызов данного метода должен перерисовывать карту так, чтобы она целиком помещалась на экране
+        self.coeff = 10
+        self.tilt = 90
+        self.rotation = 0
+
+    def change_offset(self, offset_x: int, offset_y: int) -> None:
         self.offset_x += offset_x
         self.offset_y += offset_y
+        self.reset()
+
+    def change_tilt(self, offset: int) -> None:
+        tilt_coeff = 1 / 2
+        self.tilt = max(min(self.tilt + offset * tilt_coeff, self.max_tilt), self.min_tilt)
+        self.reset()
+
+    def change_rotation(self, offset: int) -> None:
+        max_rotation = 360
+        self.rotation = (max_rotation + self.rotation + offset) % max_rotation
         self.reset()
 
 
@@ -110,8 +136,8 @@ class World(Object):
             radius: int,
             population: int,
             bases_amount: int,
-            center_x: int,
-            center_y: int,
+            map_width: int,
+            map_height: int,
             seed: int = None
     ) -> None:
         super().__init__()
@@ -132,7 +158,7 @@ class World(Object):
         self.creatures = set[Creature]()
         self.bases = set[Base]()
         self.tiles: dict[int, dict[int, Tile]] = defaultdict(dict)
-        self.map = Map(center_x, center_y)
+        self.map = Map(map_width, map_height)
         self.prepare()
 
         creature_sprites = (x.sprite for x in self.creatures)
