@@ -3,21 +3,24 @@ from typing import TYPE_CHECKING
 
 from arcade import color
 
-from simulator.world_object import WorldObject, WorldObjectSprite
+from simulator.tile import Tile
+from simulator.world_object import WorldObject, WorldObjectProjection
 
 
 if TYPE_CHECKING:
     from simulator.base import Base
 
 
-class CreatureSprite(WorldObjectSprite):
-    color = color.APRICOT
+class CreatureProjection(WorldObjectProjection):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.color = color.APRICOT
 
 
 class Creature(WorldObject):
-    sprite_class = CreatureSprite
+    projection_class = CreatureProjection
 
-    def __init__(self, position_x: int, position_y: int, bases: list["Base"]) -> None:
-        super().__init__(position_x, position_y)
+    def __init__(self, tile: "Tile", bases: list["Base"]) -> None:
+        super().__init__(tile)
         self.start_base, self.finish_base = random.sample(bases, 2)
         self.scream_radius = 10

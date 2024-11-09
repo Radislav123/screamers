@@ -260,7 +260,7 @@ class PerformanceGraph(arcade.PerfGraph, Object):
         view_height = self._view_height
 
         # We have to render at the internal texture's original size to
-        # prevent distortion and bugs when the sprite is scaled.
+        # prevent distortion and bugs when the projection is scaled.
         texture_width, texture_height = self._texture.size  # type: ignore
 
         # Toss old data by removing leftmost entries
@@ -328,7 +328,7 @@ class Window(arcade.Window, Object):
 
         self.ui_manager = UIManager(self)
         self.graphs = arcade.SpriteList()
-        self.mouse_pressed = False
+        self.mouse_dragged = False
 
         background_color = (255, 255, 255, 255)
         arcade.set_background_color(background_color)
@@ -339,10 +339,10 @@ class Window(arcade.Window, Object):
         self.world = World(30, 100, 2, self.width, self.height)
         self.world.start()
 
-        creature_sprites = (x.sprite for x in self.world.creatures)
-        bases_sprites = (x.sprite for x in self.world.bases)
-        tiles_projections = (y.projection for x in self.world.tiles.values() for y in x.values())
-        self.world.map.start(creature_sprites, bases_sprites, tiles_projections)
+        creature_projections = (x.projection for x in self.world.creatures)
+        base_projections = (x.projection for x in self.world.bases)
+        tile_projections = (x.projection for x in self.world.tile_set)
+        self.world.map.start(creature_projections, base_projections, tile_projections)
 
         self.construct_tabs()
         self.construct_graphs()
@@ -354,49 +354,53 @@ class Window(arcade.Window, Object):
         self.ui_manager.enable()
 
     def stop(self) -> None:
-        self.world.stop()
+        if self.world is not None:
+            self.world.stop()
 
-        # подготовка статистики
-        creature_tps = {x: sum(self.creature_tps_statistics[x]) / len(self.creature_tps_statistics[x])
-                        for x in sorted(self.creature_tps_statistics)}
+        make_plot = False
+        if make_plot:
+            # подготовка статистики
+            creature_tps = {x: sum(self.creature_tps_statistics[x]) / len(self.creature_tps_statistics[x])
+                            for x in sorted(self.creature_tps_statistics)}
 
-        pyplot.plot(list(creature_tps.keys()), list(creature_tps.values()), color = "r")
-        max_creatures = list(creature_tps.keys())[-1]
-        max_tps = max(list(creature_tps.values()))
-        pyplot.xlim(xmin = 0, xmax = max_creatures)
-        pyplot.ylim(ymin = 0, ymax = max_tps)
-        points_amount = 5
-        step = max(max_creatures // points_amount, 1)
-        for creatures in range(step, max_creatures, step):
-            x = creatures
-            while x not in creature_tps and x > 0:
-                x -= 1
-            y = int(creature_tps[x])
-            line_width = 0.8
-            color = "g"
-            pyplot.axhline(
-                y = y,
-                xmin = 0,
-                xmax = x / max_creatures,
-                linewidth = line_width,
-                color = color
-            )
-            pyplot.axvline(
-                x = x,
-                ymin = 0,
-                ymax = creature_tps[x] / max_tps,
-                linewidth = line_width,
-                color = color
-            )
-            pyplot.text(x, y, f"({x}; {y})")  # noqa
-        pyplot.title("Зависимость tps от количества существ")
-        pyplot.xlabel("Существа")
-        pyplot.ylabel("tps")
+            pyplot.plot(list(creature_tps.keys()), list(creature_tps.values()), color = "r")
+            max_creatures = list(creature_tps.keys())[-1]
+            max_tps = max(list(creature_tps.values()))
+            pyplot.xlim(xmin = 0, xmax = max_creatures)
+            pyplot.ylim(ymin = 0, ymax = max_tps)
+            points_amount = 5
+            step = max(max_creatures // points_amount, 1)
+            # for creatures in range(step, max_creatures, step):
+            for creatures in range(max_creatures, max_creatures, step):
+                x = creatures
+                while x not in creature_tps and x > 0:
+                    x -= 1
+                y = int(creature_tps[x])
+                line_width = 0.8
+                color = "g"
+                pyplot.axhline(
+                    y = y,
+                    xmin = 0,
+                    xmax = x / max_creatures,
+                    linewidth = line_width,
+                    color = color
+                )
+                pyplot.axvline(
+                    x = x,
+                    ymin = 0,
+                    ymax = creature_tps[x] / max_tps,
+                    linewidth = line_width,
+                    color = color
+                )
+                pyplot.text(x, y, f"({x}; {y})")  # noqa
+            pyplot.title("Зависимость tps от количества существ")
+            pyplot.xlabel("Существа")
+            pyplot.ylabel("tps")
 
-        # сохранение статистики
-        folder = f"statistics/creatures_tps"
-        Path(folder).mkdir(parents = True, exist_ok = True)
-        pyplot.savefig(f"{folder}/plot.png")
+            # сохранение статистики
+            folder = f"statistics/creatures_tps"
+            Path(folder).mkdir(parents = True, exist_ok = True)
+            pyplot.savefig(f"{folder}/plot.png")
 
     def construct_graphs(self) -> None:
         # ((graph_name, is_custom),..)
@@ -520,8 +524,21 @@ class Window(arcade.Window, Object):
         self.desired_tps = tps
         self.set_update_rate(1 / tps)
 
-    def on_mouse_press(self, x: int, y: int, button: int, modifiers: int) -> None:
-        print(f"x: {x}, y: {y}")
+    def on_mouse_release(self, x: int, y: int, button: int, modifiers: int) -> None:
+        if not self.mouse_dragged:
+            if button == MouseButtons.LEFT.value:
+                old_tile_projection = self.world.map.selected_tile
+                if old_tile_projection is not None:
+                    old_tile_projection.deselect(self.world.map)
+
+                position = self.world.map.point_to_position(x, y)
+                try:
+                    tile = self.world.tiles[position[0]][position[1]]
+                    if old_tile_projection != tile.projection:
+                        tile.projection.on_click(self.world.map)
+                except KeyError:
+                    pass
+        self.mouse_dragged = False
 
     def on_mouse_drag(self, x: int, y: int, dx: int, dy: int, buttons: int, modifiers: int) -> bool | None:
         if buttons & MouseButtons.LEFT.value:
@@ -531,6 +548,7 @@ class Window(arcade.Window, Object):
                 self.world.map.change_rotation(dx)
             if dy:
                 self.world.map.change_tilt(dy)
+        self.mouse_dragged = True
         return None
 
     def on_mouse_scroll(self, x: int, y: int, scroll_x: int, scroll_y: int) -> bool | None:

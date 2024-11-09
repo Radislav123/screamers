@@ -13,7 +13,8 @@ def simulate() -> None:
         arcade.run()
     finally:
         window.stop()
-        print(f"Симуляция окончена. Возраст мира: {window.world.age}")
+        if window.world is not None:
+            print(f"Симуляция окончена. Возраст мира: {window.world.age}")
 
 
 if __name__ == "__main__":

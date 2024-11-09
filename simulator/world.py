@@ -1,27 +1,24 @@
 import copy
+import dataclasses
 import datetime
 import math
 import random
 from collections import defaultdict
 from typing import Any, Iterable
 
-import arcade
+from arcade.shape_list import Shape, ShapeElementList
 
 from core.service.object import Object, ProjectionObject
-from simulator.base import Base, BaseSprite
-from simulator.creature import Creature, CreatureSprite
+from simulator.base import Base, BaseProjection
+from simulator.creature import Creature, CreatureProjection
 from simulator.tile import Tile, TileProjection
 
 
-class Map(ProjectionObject):
-    # множитель размера отображения мира
-    coeff: float
-    # наклон, в градусах
-    tilt: float
-    tilt_coeff: float
-    # поворот, в градусах
-    rotation: float
+type Tiles = dict[int, dict[int, Tile]]
+type WorldBorders = dict[int, dict[int, WorldBorder]]
 
+
+class Map(ProjectionObject):
     def __init__(self, width: int, height: int) -> None:
         super().__init__()
 
@@ -31,39 +28,75 @@ class Map(ProjectionObject):
         self.offset_x = self.center_x
         self.offset_y = self.center_y
 
-        self.center_on_window(width, height)
+        # множитель размера отображения мира
+        self.coeff: float | None = None
         self.min_coeff = 1
         self.max_coeff = 100
-        self.min_tilt = 45
-        self.max_tilt = 90
+        # возвышение, в градусах
+        self.elevation: float | None = None
+        self.tilt_coeff: float | None = None
+        self.min_elevation = 30
+        self.max_elevation = 90
+        # поворот, в градусах
+        self.rotation: float | None = None
+        self.center_on_window(width, height)
 
-        self.bases = set[BaseSprite]()
-        self.creatures = set[CreatureSprite]()
+        self.bases = set[BaseProjection]()
+        self.creatures = set[CreatureProjection]()
         self.tiles = set[TileProjection]()
-        self.base_polygons = arcade.shape_list.ShapeElementList()
-        self.creature_polygons = arcade.shape_list.ShapeElementList()
-        self.tile_borders = arcade.shape_list.ShapeElementList()
+        self.base_polygons = ShapeElementList()
+        self.creature_polygons = ShapeElementList()
+        self.tile_borders = ShapeElementList()
+
+        self.selected_tile: TileProjection | None = None
 
     def init(self) -> Any:
-        for projection in self.tiles:
-            if not projection.inited:
-                projection.init(self.offset_x, self.offset_y, self.coeff, self.tilt_coeff)
-                self.tile_borders.append(projection.border)
-        for projection in self.bases:
-            if not projection.inited:
-                projection.init()
-                self.base_polygons.append(projection.polygon)
-        for projection in self.creatures:
-            if not projection.inited:
-                projection.init()
-                self.creature_polygons.append(projection.polygon)
-
+        self.init_tiles()
+        self.init_bases()
+        self.init_creatures()
         self.inited = True
+
+    @staticmethod
+    def init_specific(projections: set[ProjectionObject], shapes: ShapeElementList[Shape], *args) -> None:
+        shapes.clear()
+        for projection in projections:
+            if not projection.inited:
+                projection.init(*args)
+            shapes.append(projection.shape)
+
+    def init_bases(self) -> None:
+        self.init_specific(self.bases, self.base_polygons)
+
+    def init_creatures(self) -> None:
+        self.init_specific(self.creatures, self.creature_polygons)
+
+    def init_tiles(self) -> None:
+        self.init_specific(self.tiles, self.tile_borders, self.offset_x, self.offset_y, self.coeff, self.tilt_coeff)
+
+    def reset(self) -> None:
+        self.reset_creatures()
+        self.reset_bases()
+        self.reset_tiles()
+
+    def reset_specific(self, projections: set[ProjectionObject], shapes: ShapeElementList[Shape]) -> None:
+        for projection in projections:
+            projection.inited = False
+        shapes.clear()
+        self.inited = False
+
+    def reset_bases(self) -> None:
+        self.reset_specific(self.bases, self.base_polygons)
+
+    def reset_creatures(self) -> None:
+        self.reset_specific(self.creatures, self.creature_polygons)
+
+    def reset_tiles(self) -> None:
+        self.reset_specific(self.tiles, self.tile_borders)
 
     def start(
             self,
-            creatures: Iterable[CreatureSprite],
-            bases: Iterable[BaseSprite],
+            creatures: Iterable[CreatureProjection],
+            bases: Iterable[BaseProjection],
             tiles: Iterable[TileProjection]
     ) -> None:
         for projection in bases:
@@ -73,19 +106,7 @@ class Map(ProjectionObject):
         for projection in tiles:
             self.tiles.add(projection)
             if projection.inited:
-                self.tile_borders.append(projection.border)
-
-    def reset(self) -> None:
-        for sprite in self.bases:
-            sprite.inited = False
-        for sprite in self.creatures:
-            sprite.inited = False
-        for projection in self.tiles:
-            projection.inited = False
-        self.base_polygons.clear()
-        self.creature_polygons.clear()
-        self.tile_borders.clear()
-        self.inited = False
+                self.tile_borders.append(projection.shape)
 
     def on_draw(self, draw_creatures: bool, draw_bases: bool, draw_tiles: bool) -> None:
         if not self.inited:
@@ -93,8 +114,10 @@ class Map(ProjectionObject):
 
         if draw_bases:
             self.base_polygons.draw()
+            self.reset_bases()
         if draw_creatures:
             self.creature_polygons.draw()
+            self.reset_creatures()
         if draw_tiles:
             self.tile_borders.draw()
 
@@ -118,7 +141,7 @@ class Map(ProjectionObject):
     def center_on_window(self, width: float, height: float) -> None:
         # todo: вызов данного метода должен перерисовывать карту так, чтобы она целиком помещалась на экране
         self.coeff = 10
-        self.tilt = 90
+        self.elevation = 90
         self.tilt_coeff = 1
         self.rotation = 0
 
@@ -129,14 +152,25 @@ class Map(ProjectionObject):
 
     def change_tilt(self, offset: int) -> None:
         coeff = 1 / 2
-        self.tilt = max(min(self.tilt + offset * coeff, self.max_tilt), self.min_tilt)
-        self.tilt_coeff = math.sin(math.radians(self.tilt))
+        self.elevation = max(min(self.elevation + offset * coeff, self.max_elevation), self.min_elevation)
+        self.tilt_coeff = math.sin(math.radians(self.elevation))
         self.reset()
 
     def change_rotation(self, offset: int) -> None:
         max_rotation = 360
         self.rotation = (max_rotation + self.rotation + offset) % max_rotation
         self.reset()
+
+    def point_to_position(self, point_x: float, point_y: float) -> tuple[int, int]:
+        sqrt = math.sqrt(3)
+
+        radius = self.coeff / 2
+        relative_x = point_x - self.offset_x
+        relative_y = point_y - self.offset_y
+        position_x = round((relative_x * sqrt / 3 - relative_y / 3) / radius)
+        position_y = round((relative_y * 2 / 3) / radius / self.tilt_coeff)
+
+        return position_x, position_y
 
 
 class World(Object):
@@ -166,7 +200,8 @@ class World(Object):
 
         self.creatures = set[Creature]()
         self.bases = set[Base]()
-        self.tiles: dict[int, dict[int, Tile]] = defaultdict(dict)
+        self.tiles: Tiles = defaultdict(dict)
+        self.borders: WorldBorders = defaultdict(dict)
         self.tile_set = set[Tile]()
         self.map = Map(map_width, map_height)
         self.prepare()
@@ -175,20 +210,20 @@ class World(Object):
         tiles = copy.copy(self.tile_set)
         base_tiles = random.sample(list(tiles), self.bases_amount)
         for tile in base_tiles:
-            base = Base(0, 0)
+            base = Base(tile)
             self.bases.add(base)
             tile.object = base
-            base.sprite.tile_projection = tile.projection
+            base.projection.tile_projection = tile.projection
             base.start()
 
         bases = list(self.bases)
         tiles.difference_update(base_tiles)
         creature_tiles = random.sample(list(tiles), self.population)
         for tile in creature_tiles:
-            creature = Creature(0, 0, bases)
+            creature = Creature(tile, bases)
             self.creatures.add(creature)
             tile.object = creature
-            creature.sprite.tile_projection = tile.projection
+            creature.projection.tile_projection = tile.projection
             creature.start()
 
     def stop(self) -> None:
@@ -200,10 +235,10 @@ class World(Object):
         self.bases.clear()
 
     def on_update(self) -> None:
-        for creature in self.creatures:
-            creature.on_update()
         for base in self.bases:
             base.on_update()
+        for creature in self.creatures:
+            creature.on_update()
 
     # https://www.redblobgames.com/grids/hexagons/#map-storage
     def prepare(self) -> None:
@@ -211,9 +246,32 @@ class World(Object):
         x_stop = self.radius
         y_start = -self.radius
         y_stop = self.radius
+
+        tiles_x: Tiles = defaultdict(dict)
+        tiles_y: Tiles = defaultdict(dict)
         for x in range(x_start, x_stop + 1):
             for y in range(y_start, y_stop + 1):
                 if abs(x + y) <= self.radius:
                     tile = Tile(x, y)
-                    self.tiles[x][y] = tile
+                    tiles_x[x][y] = tile
+                    tiles_y[y][x] = tile
                     self.tile_set.add(tile)
+        self.tiles = tiles_x
+
+        x_borders = {y: (min(tiles_y[y]), max(tiles_y[y])) for y in tiles_y}
+        y_borders = {x: (min(tiles_x[x]), max(tiles_x[x])) for x in tiles_x}
+        for x in range(x_start, x_stop + 1):
+            for y in range(y_start, y_stop + 1):
+                self.borders[x][y] = WorldBorder(*x_borders[y], *y_borders[x])
+        border_bounds = WorldBorder(min(tiles_x), max(tiles_x), min(tiles_y), max(tiles_y))
+
+        for tile in self.tile_set:
+            tile.init(border_bounds, self.borders, self.tiles)
+
+
+@dataclasses.dataclass
+class WorldBorder:
+    x_lower: int
+    x_upper: int
+    y_lower: int
+    y_upper: int
