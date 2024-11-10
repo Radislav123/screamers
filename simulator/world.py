@@ -1,5 +1,4 @@
 import copy
-import dataclasses
 import datetime
 import math
 import random
@@ -12,6 +11,7 @@ from core.service.object import Object, ProjectionObject
 from simulator.base import Base, BaseProjection
 from simulator.creature import Creature, CreatureProjection
 from simulator.tile import Tile, TileProjection
+from simulator.world_object import WorldObject
 
 
 type Tiles = dict[int, dict[int, Tile]]
@@ -48,7 +48,7 @@ class Map(ProjectionObject):
         self.creature_polygons = ShapeElementList()
         self.tile_borders = ShapeElementList()
 
-        self.selected_tile: TileProjection | None = None
+        self.selected_tiles = set[TileProjection]()
 
     def init(self) -> Any:
         self.init_tiles()
@@ -105,8 +105,6 @@ class Map(ProjectionObject):
             self.creatures.add(projection)
         for projection in tiles:
             self.tiles.add(projection)
-            if projection.inited:
-                self.tile_borders.append(projection.shape)
 
     def on_draw(self, draw_creatures: bool, draw_bases: bool, draw_tiles: bool) -> None:
         if not self.inited:
@@ -178,7 +176,7 @@ class World(Object):
             self,
             radius: int,
             population: int,
-            bases_amount: int,
+            bases_number: int,
             map_width: int,
             map_height: int,
             seed: int = None
@@ -189,7 +187,7 @@ class World(Object):
             seed = datetime.datetime.now().timestamp()
         self.seed = seed
         self.population = population
-        self.bases_amount = bases_amount
+        self.bases_number = bases_number
         random.seed(self.seed)
 
         self.age = 0
@@ -207,24 +205,26 @@ class World(Object):
         self.prepare()
 
     def start(self) -> None:
+        safe_radius = max(Base.radius, Creature.radius)
         tiles = copy.copy(self.tile_set)
-        base_tiles = random.sample(list(tiles), self.bases_amount)
-        for tile in base_tiles:
-            base = Base(tile)
-            self.bases.add(base)
-            tile.object = base
-            base.projection.tile_projection = tile.projection
-            base.start()
 
+        def init(amount: int, object_class: type[WorldObject], objects_set: set[WorldObject], *args) -> None:
+            for _ in range(amount):
+                center_tile = random.choice(list(tiles))
+                world_object = object_class(center_tile, *args)
+
+                object_tiles = set()
+                object_tiles.add(world_object.center_tile)
+                object_tiles = world_object.append_layers(object_tiles, world_object.radius)
+                world_object.init(object_tiles)
+                object_tiles = world_object.append_layers(world_object.tiles, safe_radius)
+
+                tiles.difference_update(object_tiles)
+                objects_set.add(world_object)
+
+        init(self.bases_number, Base, self.bases)
         bases = list(self.bases)
-        tiles.difference_update(base_tiles)
-        creature_tiles = random.sample(list(tiles), self.population)
-        for tile in creature_tiles:
-            creature = Creature(tile, bases)
-            self.creatures.add(creature)
-            tile.object = creature
-            creature.projection.tile_projection = tile.projection
-            creature.start()
+        init(self.population, Creature, self.creatures, bases)
 
     def stop(self) -> None:
         for creature in self.creatures:
@@ -258,20 +258,28 @@ class World(Object):
                     self.tile_set.add(tile)
         self.tiles = tiles_x
 
-        x_borders = {y: (min(tiles_y[y]), max(tiles_y[y])) for y in tiles_y}
-        y_borders = {x: (min(tiles_x[x]), max(tiles_x[x])) for x in tiles_x}
+        x_borders = {x: (min(tiles_x[x]), max(tiles_x[x])) for x in tiles_x}
+        y_borders = {y: (min(tiles_y[y]), max(tiles_y[y])) for y in tiles_y}
         for x in range(x_start, x_stop + 1):
             for y in range(y_start, y_stop + 1):
                 self.borders[x][y] = WorldBorder(*x_borders[y], *y_borders[x])
         border_bounds = WorldBorder(min(tiles_x), max(tiles_x), min(tiles_y), max(tiles_y))
 
         for tile in self.tile_set:
-            tile.init(border_bounds, self.borders, self.tiles)
+            tile.init(border_bounds, self.borders, self.tiles, self.radius)
 
 
-@dataclasses.dataclass
 class WorldBorder:
-    x_lower: int
-    x_upper: int
-    y_lower: int
-    y_upper: int
+    def __init__(self, x_lower: int, x_upper: int, y_lower: int, y_upper: int) -> None:
+        self.x_lower = x_lower
+        self.x_upper = x_upper
+        self.y_lower = y_lower
+        self.y_upper = y_upper
+        self.x = (self.x_lower, self.x_upper)
+        self.y = (self.y_lower, self.y_upper)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}{(self.x, self.y)}"
+
+    def on_edge(self, x: int, y: int) -> bool:
+        return x in self.x or y in self.y

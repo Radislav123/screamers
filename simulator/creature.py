@@ -19,8 +19,9 @@ class CreatureProjection(WorldObjectProjection):
 
 class Creature(WorldObject):
     projection_class = CreatureProjection
+    projections: set[projection_class]
 
-    def __init__(self, tile: "Tile", bases: list["Base"]) -> None:
-        super().__init__(tile)
+    def __init__(self, center_tile: "Tile", bases: list["Base"]) -> None:
+        super().__init__(center_tile)
         self.start_base, self.finish_base = random.sample(bases, 2)
         self.scream_radius = 10

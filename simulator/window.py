@@ -1,3 +1,4 @@
+import copy
 import enum
 import time
 from collections import defaultdict, deque
@@ -336,11 +337,11 @@ class Window(arcade.Window, Object):
         self.timings = defaultdict(lambda: deque(maxlen = self.settings.TIMINGS_LENGTH))
 
     def start(self) -> None:
-        self.world = World(30, 100, 2, self.width, self.height)
+        self.world = World(50, 100, 2, self.width, self.height)
         self.world.start()
 
-        creature_projections = (x.projection for x in self.world.creatures)
-        base_projections = (x.projection for x in self.world.bases)
+        creature_projections = (y for x in self.world.creatures for y in x.projections)
+        base_projections = (y for x in self.world.bases for y in x.projections)
         tile_projections = (x.projection for x in self.world.tile_set)
         self.world.map.start(creature_projections, base_projections, tile_projections)
 
@@ -464,8 +465,7 @@ class Window(arcade.Window, Object):
         self.draw_tiles_tab = self.tab_container.corners[0].add(
             TextTab(lambda: "Показывать сетку мира", self.settings.OVERLAY_UPDATE_PERIOD)
         )
-        self.draw_tiles_tab.reset()
-        # показывать ли существ
+        # отрисовка объектов
         self.draw_objects_tab = self.tab_container.corners[0].add(
             TextTab(lambda: "Показывать существ", self.settings.OVERLAY_UPDATE_PERIOD)
         )
@@ -525,19 +525,26 @@ class Window(arcade.Window, Object):
         self.set_update_rate(1 / tps)
 
     def on_mouse_release(self, x: int, y: int, button: int, modifiers: int) -> None:
-        if not self.mouse_dragged:
-            if button == MouseButtons.LEFT.value:
-                old_tile_projection = self.world.map.selected_tile
-                if old_tile_projection is not None:
-                    old_tile_projection.deselect(self.world.map)
+        if not self.mouse_dragged and button == MouseButtons.LEFT.value and self.draw_tiles_tab:
+            old_projections = copy.copy(self.world.map.selected_tiles)
+            if old_projections is not None:
+                for projection in old_projections:
+                    projection.deselect(self.world.map)
 
-                position = self.world.map.point_to_position(x, y)
-                try:
-                    tile = self.world.tiles[position[0]][position[1]]
-                    if old_tile_projection != tile.projection:
-                        tile.projection.on_click(self.world.map)
-                except KeyError:
-                    pass
+            position = self.world.map.point_to_position(x, y)
+            try:
+                tile = self.world.tiles[position[0]][position[1]]
+                if tile.object is not None:
+                    projections = set(x.tile_projection for x in tile.object.projections)
+                else:
+                    projections = set()
+                    projections.add(tile.projection)
+
+                if old_projections != projections:
+                    for projection in projections:
+                        projection.on_click(self.world.map)
+            except KeyError:
+                pass
         self.mouse_dragged = False
 
     def on_mouse_drag(self, x: int, y: int, dx: int, dy: int, buttons: int, modifiers: int) -> bool | None:

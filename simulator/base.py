@@ -11,3 +11,5 @@ class BaseProjection(WorldObjectProjection):
 
 class Base(WorldObject):
     projection_class = BaseProjection
+    projections: set[projection_class]
+    radius = 1
