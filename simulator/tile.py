@@ -1,17 +1,17 @@
 import math
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 import arcade
 from arcade import color
 from arcade.shape_list import Shape
 
-from core.service.object import PhysicalObject, ProjectionObject
+from core.service.object import Coordinates, PhysicalObject, ProjectionObject
 
 
 if TYPE_CHECKING:
     from simulator.base import Base
     from simulator.creature import Creature
-    from simulator.world import Map, Tiles, WorldBorder, WorldBorders
+    from simulator.world import Map, Tiles2
 
 
 class TileProjection(ProjectionObject):
@@ -85,103 +85,31 @@ class TileProjection(ProjectionObject):
 
 
 class Tile(PhysicalObject):
-    neighbour_offsets = ((0, 1), (1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1))
+    neighbour_offsets = {
+        0: Coordinates(0, 1),
+        1: Coordinates(1, 0),
+        2: Coordinates(1, -1),
+        3: Coordinates(0, -1),
+        4: Coordinates(-1, 0),
+        5: Coordinates(-1, 1)
+    }
     neighbours: list["Tile"]
 
-    def __init__(self, x: int, y: int) -> None:
-        super().__init__(x, y)
-        self.projection = TileProjection(x, y)
+    def __init__(self, coordinates: Coordinates) -> None:
+        super().__init__(coordinates)
+        self.projection = TileProjection(self.x, self.y)
 
         self.object: Creature | Base | None = None
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}{self.x, self.y}"
+        return f"{self.__class__.__name__}{self.coordinates}"
 
     # https://www.redblobgames.com/grids/hexagons/#wraparound
-    def init(
-            self,
-            border_bounds: "WorldBorder",
-            world_borders: "WorldBorders",
-            all_tiles: "Tiles",
-            world_radius: int
-    ) -> None:
+    def init(self, tiles_2: "Tiles2", world_radius: int) -> Any:
         self.neighbours = []
 
-        for direction, (offset_x, offset_y) in enumerate(self.neighbour_offsets):
-            x = self.x + offset_x
-            y = self.y + offset_y
+        for direction, offset in self.neighbour_offsets.items():
+            neighbour_coordinates = (self.coordinates + offset).fix_to_cycle(world_radius)
 
-            border_x = x
-            border_y = y
-            if border_x > border_bounds.x_upper:
-                border_x = border_bounds.x_lower
-            if border_x < border_bounds.x_lower:
-                border_x = border_bounds.x_upper
-            if border_y > border_bounds.y_upper:
-                border_y = border_bounds.y_lower
-            if border_y < border_bounds.y_lower:
-                border_y = border_bounds.y_upper
-            neighbour_border = world_borders[border_x][border_y]
-
-            mirrors = (
-                (world_radius, -world_radius * 2),
-                (-world_radius, -world_radius),
-                (-world_radius * 2, world_radius),
-                (-world_radius, world_radius * 2),
-                (world_radius, world_radius),
-                (world_radius * 2, -world_radius)
-            )
-
-            self_border = world_borders[self.x][self.y]
-            corners = (
-                self.x == 0 and self.y == world_radius,
-                self.x == world_radius and self.y == 0,
-                self.x == 0 and self.y == -world_radius,
-                self.x == -world_radius and self.y == 0
-            )
-            x_upper = self.x == self_border.x_upper
-            x_lower = self.x == self_border.x_lower
-            y_upper = self.y == self_border.y_upper
-            y_lower = self.y == self_border.y_lower
-            conditions = (
-                (y_upper and not x_upper) or corners[0],
-                x_upper and y_upper,
-                (x_upper and not y_upper) or corners[1],
-                (y_lower and not x_lower) or corners[2],
-                x_lower and y_lower,
-                (x_lower and not y_lower) or corners[3]
-            )
-
-            def fix_position() -> tuple[int, int]:
-                if conditions[border_0]:
-                    position_x = x + mirrors[border_0][0] - self.neighbour_offsets[border_0][0]
-                    position_y = y + mirrors[border_0][1] - self.neighbour_offsets[border_0][1]
-                elif conditions[border_1]:
-                    position_x = x + mirrors[border_1][0] - self.neighbour_offsets[border_1][0]
-                    position_y = y + mirrors[border_1][1] - self.neighbour_offsets[border_1][1]
-                else:
-                    position_x = x
-                    position_y = y
-                return position_x, position_y
-
-            border_0 = direction
-            border_1 = (direction + 1) % 6
-            if direction == 0:
-                if y > neighbour_border.y_upper:
-                    x, y = fix_position()
-            elif direction == 1:
-                if x > neighbour_border.x_upper:
-                    x, y = fix_position()
-            elif direction == 2:
-                if x > neighbour_border.x_upper and y < neighbour_border.y_lower:
-                    x, y = fix_position()
-            elif direction == 3:
-                if y < neighbour_border.y_lower:
-                    x, y = fix_position()
-            elif direction == 4:
-                if x < neighbour_border.x_lower:
-                    x, y = fix_position()
-            elif direction == 5:
-                if x < neighbour_border.x_lower and y > neighbour_border.y_upper:
-                    x, y = fix_position()
-            self.neighbours.append(all_tiles[x][y])
+            neighbour = tiles_2[neighbour_coordinates.x][neighbour_coordinates.y]
+            self.neighbours.append(neighbour)

@@ -531,14 +531,20 @@ class Window(arcade.Window, Object):
                 for projection in old_projections:
                     projection.deselect(self.world.map)
 
-            position = self.world.map.point_to_position(x, y)
+            position = self.world.map.point_to_coordinates(x, y)
             try:
-                tile = self.world.tiles[position[0]][position[1]]
-                if tile.object is not None:
-                    projections = set(x.tile_projection for x in tile.object.projections)
+                tile = self.world.tiles_2[position.x][position.y]
+                get_object = True
+                # выделение объекта
+                if get_object:
+                    if tile.object is not None:
+                        projections = set(x.tile_projection for x in tile.object.projections)
+                    else:
+                        projections = set()
+                        projections.add(tile.projection)
+                # выделение соседей
                 else:
-                    projections = set()
-                    projections.add(tile.projection)
+                    projections = set(x.projection for x in tile.neighbours)
 
                 if old_projections != projections:
                     for projection in projections:

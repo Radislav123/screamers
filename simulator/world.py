@@ -7,15 +7,15 @@ from typing import Any, Iterable
 
 from arcade.shape_list import Shape, ShapeElementList
 
-from core.service.object import Object, ProjectionObject
+from core.service.object import Coordinates, Object, ProjectionObject
 from simulator.base import Base, BaseProjection
 from simulator.creature import Creature, CreatureProjection
 from simulator.tile import Tile, TileProjection
 from simulator.world_object import WorldObject
 
 
-type Tiles = dict[int, dict[int, Tile]]
-type WorldBorders = dict[int, dict[int, WorldBorder]]
+type Tiles2 = dict[int, dict[int, Tile]]
+type Tiles3 = dict[int, dict[int, [dict[int, Tile]]]]
 
 
 class Map(ProjectionObject):
@@ -159,7 +159,7 @@ class Map(ProjectionObject):
         self.rotation = (max_rotation + self.rotation + offset) % max_rotation
         self.reset()
 
-    def point_to_position(self, point_x: float, point_y: float) -> tuple[int, int]:
+    def point_to_coordinates(self, point_x: float, point_y: float) -> Coordinates:
         sqrt = math.sqrt(3)
 
         radius = self.coeff / 2
@@ -168,7 +168,7 @@ class Map(ProjectionObject):
         position_x = round((relative_x * sqrt / 3 - relative_y / 3) / radius)
         position_y = round((relative_y * 2 / 3) / radius / self.tilt_coeff)
 
-        return position_x, position_y
+        return Coordinates(position_x, position_y)
 
 
 class World(Object):
@@ -198,8 +198,8 @@ class World(Object):
 
         self.creatures = set[Creature]()
         self.bases = set[Base]()
-        self.tiles: Tiles = defaultdict(dict)
-        self.borders: WorldBorders = defaultdict(dict)
+        self.tiles_2: Tiles2 = defaultdict(dict)
+        self.tiles_3: Tiles3 = defaultdict(lambda: defaultdict(dict))
         self.tile_set = set[Tile]()
         self.map = Map(map_width, map_height)
         self.prepare()
@@ -241,45 +241,19 @@ class World(Object):
             creature.on_update()
 
     # https://www.redblobgames.com/grids/hexagons/#map-storage
+    # todo: добавить сохранение/кэширование карты и соседей для более быстрой загрузки
     def prepare(self) -> None:
-        x_start = -self.radius
-        x_stop = self.radius
-        y_start = -self.radius
-        y_stop = self.radius
-
-        tiles_x: Tiles = defaultdict(dict)
-        tiles_y: Tiles = defaultdict(dict)
-        for x in range(x_start, x_stop + 1):
-            for y in range(y_start, y_stop + 1):
-                if abs(x + y) <= self.radius:
-                    tile = Tile(x, y)
-                    tiles_x[x][y] = tile
-                    tiles_y[y][x] = tile
-                    self.tile_set.add(tile)
-        self.tiles = tiles_x
-
-        x_borders = {x: (min(tiles_x[x]), max(tiles_x[x])) for x in tiles_x}
-        y_borders = {y: (min(tiles_y[y]), max(tiles_y[y])) for y in tiles_y}
-        for x in range(x_start, x_stop + 1):
-            for y in range(y_start, y_stop + 1):
-                self.borders[x][y] = WorldBorder(*x_borders[y], *y_borders[x])
-        border_bounds = WorldBorder(min(tiles_x), max(tiles_x), min(tiles_y), max(tiles_y))
+        for x in range(-self.radius, self.radius + 1):
+            for y in range(-self.radius, self.radius + 1):
+                coordinates = Coordinates(x, y)
+                if coordinates.in_radius(self.radius + 1):
+                    self.add_tile(coordinates)
 
         for tile in self.tile_set:
-            tile.init(border_bounds, self.borders, self.tiles, self.radius)
+            tile.init(self.tiles_2, self.radius)
 
-
-class WorldBorder:
-    def __init__(self, x_lower: int, x_upper: int, y_lower: int, y_upper: int) -> None:
-        self.x_lower = x_lower
-        self.x_upper = x_upper
-        self.y_lower = y_lower
-        self.y_upper = y_upper
-        self.x = (self.x_lower, self.x_upper)
-        self.y = (self.y_lower, self.y_upper)
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}{(self.x, self.y)}"
-
-    def on_edge(self, x: int, y: int) -> bool:
-        return x in self.x or y in self.y
+    def add_tile(self, coordinates: Coordinates) -> None:
+        tile = Tile(coordinates)
+        self.tiles_2[tile.x][tile.y] = tile
+        self.tiles_3[tile.a][tile.b][tile.c] = tile
+        self.tile_set.add(tile)

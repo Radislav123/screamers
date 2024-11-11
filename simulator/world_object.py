@@ -29,7 +29,7 @@ class WorldObject(PhysicalObject):
         self.center_tile = center_tile
         self.tiles: set["Tile"] | None = None
         self.resources = 0
-        super().__init__(self.center_tile.x, self.center_tile.y, *args, **kwargs)
+        super().__init__(self.center_tile.coordinates, *args, **kwargs)
 
     def init(self, tiles: set["Tile"]) -> Any:
         self.tiles = tiles
