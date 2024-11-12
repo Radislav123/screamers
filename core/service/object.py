@@ -24,6 +24,9 @@ class Object:
         self.id = self.counter
         self.__class__.counter += 1
 
+    def __lt__(self, other: "Self") -> bool:
+        return self.id < other.id
+
     def init(self, *args, **kwargs) -> Any:
         pass
 

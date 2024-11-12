@@ -6,6 +6,7 @@ from collections import defaultdict
 from typing import Any, Iterable
 
 from arcade.shape_list import Shape, ShapeElementList
+from sortedcontainers import SortedSet
 
 from core.service.object import Coordinates, Object, ProjectionObject
 from simulator.base import Base, BaseProjection
@@ -196,8 +197,8 @@ class World(Object):
         # в тайлах
         self.radius = radius
 
-        self.creatures = set[Creature]()
-        self.bases = set[Base]()
+        self.creatures = SortedSet[Creature]()
+        self.bases = SortedSet[Base]()
         self.tiles_2: Tiles2 = defaultdict(dict)
         self.tiles_3: Tiles3 = defaultdict(lambda: defaultdict(dict))
         self.tile_set = set[Tile]()
