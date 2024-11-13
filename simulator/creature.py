@@ -19,7 +19,7 @@ class CreatureProjection(WorldObjectProjection):
 
 class Creature(WorldObject):
     projection_class = CreatureProjection
-    projections: set[projection_class]
+    projections: dict["Tile", projection_class]
 
     def __init__(self, center_tile: "Tile", bases: list["Base"]) -> None:
         super().__init__(center_tile)

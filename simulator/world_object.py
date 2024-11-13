@@ -5,6 +5,7 @@ from arcade.shape_list import create_polygon
 from arcade.types import Color, RGBA
 
 from core.service.object import PhysicalObject, ProjectionObject
+from simulator.action import Move
 
 
 if TYPE_CHECKING:
@@ -22,22 +23,24 @@ class WorldObjectProjection(ProjectionObject):
 
 class WorldObject(PhysicalObject):
     projection_class: type[WorldObjectProjection]
-    projections: set["projection_class"]
+    projections: dict["Tile", WorldObjectProjection]
     radius = 0
 
     def __init__(self, center_tile: "Tile", *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.center_tile = center_tile
         self.tiles: set["Tile"] | None = None
         self.resources = 0
-        super().__init__(self.center_tile.coordinates, *args, **kwargs)
+
+        self.move = Move()
 
     def init(self, tiles: set["Tile"]) -> Any:
         self.tiles = tiles
-        self.projections = set()
+        self.projections = {}
         for tile in self.tiles:
             tile.object = self
             projection = self.projection_class()
-            self.projections.add(projection)
+            self.projections[tile] = projection
             projection.tile_projection = tile.projection
 
     @staticmethod
@@ -50,3 +53,11 @@ class WorldObject(PhysicalObject):
                 new_tiles.update(tile.neighbours)
             tiles = new_tiles
         return tiles
+
+    def on_update(self, *args, **kwargs) -> Any:
+        action = self.move
+        action.executed = False
+        action.timer += 1
+        if action.timer >= action.period:
+            action.timer -= action.period
+            action.execute(self)

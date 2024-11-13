@@ -1,6 +1,12 @@
+from typing import TYPE_CHECKING
+
 from arcade import color
 
 from simulator.world_object import WorldObject, WorldObjectProjection
+
+
+if TYPE_CHECKING:
+    from simulator.tile import Tile
 
 
 class BaseProjection(WorldObjectProjection):
@@ -11,5 +17,5 @@ class BaseProjection(WorldObjectProjection):
 
 class Base(WorldObject):
     projection_class = BaseProjection
-    projections: set[projection_class]
+    projections: dict["Tile", projection_class]
     radius = 1

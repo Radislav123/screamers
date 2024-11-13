@@ -5,7 +5,8 @@ import arcade
 from arcade import color
 from arcade.shape_list import Shape
 
-from core.service.object import Coordinates, PhysicalObject, ProjectionObject
+from core.service.coordinates import Coordinates
+from core.service.object import PhysicalObject, ProjectionObject
 
 
 if TYPE_CHECKING:
@@ -94,15 +95,24 @@ class Tile(PhysicalObject):
         5: Coordinates(-1, 1)
     }
     neighbours: list["Tile"]
+    neighbours_amount = len(neighbour_offsets)
 
-    def __init__(self, coordinates: Coordinates) -> None:
-        super().__init__(coordinates)
+    def __init__(self, coordinates: Coordinates, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.coordinates = coordinates
+        self.x = self.coordinates.x
+        self.y = self.coordinates.y
+
+        self.a = self.coordinates.a
+        self.b = self.coordinates.b
+        self.c = self.coordinates.c
+
         self.projection = TileProjection(self.x, self.y)
 
         self.object: Creature | Base | None = None
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}{self.coordinates}"
+        return f"{self.__class__.__name__}({self.coordinates})"
 
     # https://www.redblobgames.com/grids/hexagons/#wraparound
     def init(self, tiles_2: "Tiles2", world_radius: int) -> Any:

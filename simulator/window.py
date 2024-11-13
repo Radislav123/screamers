@@ -340,8 +340,8 @@ class Window(arcade.Window, Object):
         self.world = World(50, 100, 2, self.width, self.height)
         self.world.start()
 
-        creature_projections = (y for x in self.world.creatures for y in x.projections)
-        base_projections = (y for x in self.world.bases for y in x.projections)
+        creature_projections = (y for x in self.world.creatures for y in x.projections.values())
+        base_projections = (y for x in self.world.bases for y in x.projections.values())
         tile_projections = (x.projection for x in self.world.tile_set)
         self.world.map.start(creature_projections, base_projections, tile_projections)
 
@@ -538,7 +538,7 @@ class Window(arcade.Window, Object):
                 # выделение объекта
                 if get_object:
                     if tile.object is not None:
-                        projections = set(x.tile_projection for x in tile.object.projections)
+                        projections = set(x.tile_projection.values() for x in tile.object.projections)
                     else:
                         projections = set()
                         projections.add(tile.projection)

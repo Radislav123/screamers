@@ -8,7 +8,8 @@ from typing import Any, Iterable
 from arcade.shape_list import Shape, ShapeElementList
 from sortedcontainers import SortedSet
 
-from core.service.object import Coordinates, Object, ProjectionObject
+from core.service.coordinates import Coordinates
+from core.service.object import Object, ProjectionObject
 from simulator.base import Base, BaseProjection
 from simulator.creature import Creature, CreatureProjection
 from simulator.tile import Tile, TileProjection
@@ -209,7 +210,7 @@ class World(Object):
         safe_radius = max(Base.radius, Creature.radius)
         tiles = copy.copy(self.tile_set)
 
-        def init(amount: int, object_class: type[WorldObject], objects_set: set[WorldObject], *args) -> None:
+        def init(amount: int, object_class: type[WorldObject], objects_set: SortedSet[WorldObject], *args) -> None:
             for _ in range(amount):
                 center_tile = random.choice(list(tiles))
                 world_object = object_class(center_tile, *args)
@@ -240,6 +241,7 @@ class World(Object):
             base.on_update()
         for creature in self.creatures:
             creature.on_update()
+        self.age += 1
 
     # https://www.redblobgames.com/grids/hexagons/#map-storage
     # todo: добавить сохранение/кэширование карты и соседей для более быстрой загрузки
