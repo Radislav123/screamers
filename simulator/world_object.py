@@ -1,5 +1,5 @@
 import copy
-from typing import Any, TYPE_CHECKING
+from typing import Any, Iterable, TYPE_CHECKING
 
 from arcade.shape_list import create_polygon
 from arcade.types import Color, RGBA
@@ -34,25 +34,14 @@ class WorldObject(PhysicalObject):
 
         self.move = Move()
 
-    def init(self, tiles: set["Tile"]) -> Any:
-        self.tiles = tiles
+    def init(self, tiles: Iterable["Tile"]) -> Any:
+        self.tiles = set(tiles)
         self.projections = {}
         for tile in self.tiles:
             tile.object = self
             projection = self.projection_class()
             self.projections[tile] = projection
             projection.tile_projection = tile.projection
-
-    @staticmethod
-    def append_layers(tiles: set["Tile"], layers_number: int) -> set["Tile"]:
-        tiles = copy.copy(tiles)
-        for _ in range(layers_number):
-            new_tiles = set()
-            for tile in tiles:
-                new_tiles.add(tile)
-                new_tiles.update(tile.neighbours)
-            tiles = new_tiles
-        return tiles
 
     def on_update(self, *args, **kwargs) -> Any:
         action = self.move

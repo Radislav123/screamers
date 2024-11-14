@@ -7,11 +7,10 @@ from arcade.shape_list import Shape
 
 from core.service.coordinates import Coordinates
 from core.service.object import PhysicalObject, ProjectionObject
+from simulator.world_object import WorldObject
 
 
 if TYPE_CHECKING:
-    from simulator.base import Base
-    from simulator.creature import Creature
     from simulator.world import Map, Tiles2
 
 
@@ -109,7 +108,8 @@ class Tile(PhysicalObject):
 
         self.projection = TileProjection(self.x, self.y)
 
-        self.object: Creature | Base | None = None
+        self.object: WorldObject | None = None
+        self.region: set[Tile] | None = None
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.coordinates})"

@@ -1,6 +1,6 @@
 import copy
 import math
-from typing import Self
+from typing import Iterable, Self
 
 
 class Coordinates:
@@ -15,15 +15,29 @@ class Coordinates:
         self.c = -x - y
 
         self.all = copy.copy(self.__dict__)
+        self.to_2 = (self.x, self.y)
+        self.to_3 = (self.a, self.b, self.c)
+
+    def __hash__(self) -> int:
+        return hash(self.to_2)
+
+    def __eq__(self, other: Self) -> bool:
+        return self.to_2 == other.to_2
 
     def __add__(self, other: Self) -> Self:
-        return Coordinates(self.x + other.x, self.y + other.y)
+        return self.__class__(self.x + other.x, self.y + other.y)
 
     def __sub__(self, other: Self) -> Self:
-        return Coordinates(self.x - other.x, self.y - other.y)
+        return self.__class__(self.x - other.x, self.y - other.y)
 
     def __repr__(self) -> Self:
         return f"{self.__class__.__name__}{self.all}"
+
+    def __floordiv__(self, other: int) -> Self:
+        return self.__class__(self.x // other, self.y // other)
+
+    def __mul__(self, other: int) -> Self:
+        return self.__class__(self.x * other, self.y * other)
 
     @classmethod
     def get_mirror_centers(cls, radius: int) -> dict[int | None, "Self"]:
@@ -49,27 +63,39 @@ class Coordinates:
         assert a + b + c == 0, "Coordinates are not correct"
         return cls(a, b)
 
-    def to_2(self) -> tuple[int, int]:
-        return self.x, self.y
+    def in_radius(self, radius: int, offset: Self = None) -> bool:
+        if offset is None:
+            absolute = self
+        else:
+            absolute = self - offset
+        return abs(absolute.a) < radius and abs(absolute.b) < radius and abs(absolute.c) < radius
 
-    def to_3(self) -> tuple[int, int, int]:
-        return self.a, self.b, self.c
+    def out_radius(self, radius: int, offset: Self = None) -> bool:
+        if offset is None:
+            absolute = self
+        else:
+            absolute = self - offset
+        return abs(absolute.a) > radius or abs(absolute.b) > radius or abs(absolute.c) > radius
 
-    def in_radius(self, radius: int) -> bool:
-        return abs(self.a) < radius and abs(self.b) < radius and abs(self.c) < radius
-
-    def out_radius(self, radius: int) -> bool:
-        return abs(self.a) > radius or abs(self.b) > radius or abs(self.c) > radius
-
-    def on_radius(self, radius: int) -> bool:
-        values = sorted((abs(x) for x in self.to_3()), reverse = True)
+    def on_radius(self, radius: int, offset: Self = None) -> bool:
+        if offset is None:
+            absolute = self
+        else:
+            absolute = self - offset
+        values = sorted((abs(x) for x in absolute.to_3), reverse = True)
         return values[0] == radius
+
+    def get_distances(self, others: Iterable[Self]) -> dict[Self, float]:
+        return {x: self.distance_3(x) for x in others}
+
+    def get_sorted_distances(self, others: Iterable[Self], reverse: bool = False) -> list[tuple[Self, float]]:
+        return sorted(self.get_distances(others).items(), key = lambda x: x[1], reverse = reverse)
 
     def fix_to_cycle(self, radius: int) -> Self:
         """Зацикливает координаты"""
 
         mirrors = Coordinates.get_mirror_centers(radius)
-        distances = sorted({x: self.distance_3(x) for x in mirrors.values()}.items(), key = lambda x: x[1])
+        distances = self.get_sorted_distances(mirrors.values())
         closest = distances[0][0]
         return self - closest
 
@@ -80,7 +106,7 @@ class Coordinates:
         return self.__class__.from_3(-self.a, -self.b, -self.c)
 
     def distance_2(self, other: "Self") -> float:
-        return math.dist(self.to_2(), other.to_2())
+        return math.dist(self.to_2, other.to_2)
 
     def distance_3(self, other: "Self") -> float:
-        return sum(abs(x) for x in (self - other).to_3()) / 2
+        return sum(abs(x) for x in (self - other).to_3) / 2

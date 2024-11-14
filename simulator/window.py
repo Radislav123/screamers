@@ -14,6 +14,7 @@ from matplotlib import pyplot
 
 from core.service.object import Object
 from simulator.creature import Creature
+from simulator.tile import Tile, TileProjection
 from simulator.world import World
 
 
@@ -524,6 +525,24 @@ class Window(arcade.Window, Object):
         self.desired_tps = tps
         self.set_update_rate(1 / tps)
 
+    @staticmethod
+    def get_tile(tile: Tile) -> set[TileProjection]:
+        projections = set()
+        projections.add(tile.projection)
+        return projections
+
+    @staticmethod
+    def get_neighbours(tile: Tile) -> set[TileProjection]:
+        return set(x.projection for x in tile.neighbours)
+
+    @staticmethod
+    def get_object(tile: Tile) -> set[TileProjection]:
+        return set(x.projection for x in tile.object.tiles)
+
+    @staticmethod
+    def get_region(tile: Tile) -> set[TileProjection]:
+        return set(x.projection for x in tile.region)
+
     def on_mouse_release(self, x: int, y: int, button: int, modifiers: int) -> None:
         if not self.mouse_dragged and button == MouseButtons.LEFT.value and self.draw_tiles_tab:
             old_projections = copy.copy(self.world.map.selected_tiles)
@@ -534,17 +553,22 @@ class Window(arcade.Window, Object):
             position = self.world.map.point_to_coordinates(x, y)
             try:
                 tile = self.world.tiles_2[position.x][position.y]
-                get_object = True
-                # выделение объекта
-                if get_object:
-                    if tile.object is not None:
-                        projections = set(x.tile_projection.values() for x in tile.object.projections)
-                    else:
-                        projections = set()
-                        projections.add(tile.projection)
-                # выделение соседей
+                get_tile = False
+                get_neighbours = False
+                get_object = False
+                get_region = True
+                assert get_tile + get_object + get_region + get_neighbours == 1
+
+                if get_tile:
+                    projections = self.get_tile(tile)
+                elif get_neighbours:
+                    projections = self.get_neighbours(tile)
+                elif get_object:
+                    projections = self.get_object(tile)
+                elif get_region:
+                    projections = self.get_region(tile)
                 else:
-                    projections = set(x.projection for x in tile.neighbours)
+                    raise ValueError("There is nothing to select.")
 
                 if old_projections != projections:
                     for projection in projections:
