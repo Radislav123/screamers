@@ -203,8 +203,8 @@ class World(Object):
         self.radius_in_regions = radius_in_regions
         self.radius = self.radius_in_regions * (self.region_radius * 2 + 1) + self.region_radius
 
-        self.creatures = SortedSet[Creature]()
-        self.bases = SortedSet[Base]()
+        self.creatures: set[Creature] | SortedSet[Creature] = SortedSet()
+        self.bases: set[Base] | SortedSet[Base] = SortedSet()
         self.tiles_2: Tiles2 = defaultdict(dict)
         self.tile_set = set[Tile]()
         self.regions_2: Regions2 = defaultdict(dict)
@@ -224,7 +224,7 @@ class World(Object):
 
                 object_indexes = set()
                 object_indexes.add(world_object.center_tile.coordinates)
-                object_indexes = self.append_layers(object_indexes, world_object.radius)
+                object_indexes = self.append_layers(object_indexes, world_object.radius, True)
                 world_object.init(self.tiles_2[index.x][index.y] for index in object_indexes)
                 occupied_indexes = self.append_layers((x.coordinates for x in world_object.tiles), safe_radius)
 
@@ -234,6 +234,13 @@ class World(Object):
         init(self.bases_number, Base, self.bases)
         bases = list(self.bases)
         init(self.population, Creature, self.creatures, bases)
+
+        for creature in self.creatures:
+            region = creature.center_tile.region
+            region.world_objects[Creature].add(creature)
+        for base in self.bases:
+            region = base.center_tile.region
+            region.world_objects[Base].add(base)
 
     def stop(self) -> None:
         for creature in self.creatures:
@@ -265,7 +272,7 @@ class World(Object):
                 new_indexes.add(index)
                 if real_neighbours:
                     new_indexes.update(
-                        x.coordinates.fix_to_cycle(self.radius_in_regions, self.region_radius)
+                        x.coordinates.fix_to_cycle(self.tiles_2, self.radius_in_regions, self.region_radius)
                         for x in self.tiles_2[index.x][index.y].neighbours
                     )
                 else:
@@ -290,13 +297,19 @@ class World(Object):
 
         for coordinates in region_centers:
             region = Region(coordinates)
-            region_indexes = self.get_region_indexes(coordinates)
+            self.add_region(region)
+
+        for region in self.region_set:
+            region_indexes = self.get_region_indexes(region.coordinates)
             region_tiles = set()
             for tile_index in region_indexes:
                 tile = Tile(tile_index, region)
                 self.add_tile(tile)
                 region_tiles.add(tile)
-            region.init(region_tiles)
+            region.tiles = region_tiles
+
+        for region in self.region_set:
+            region.init(self.radius_in_regions, self.tiles_2, self.regions_2)
 
         for tile in self.tile_set:
             tile.init(self.tiles_2, self.radius_in_regions, self.region_radius)
@@ -304,6 +317,10 @@ class World(Object):
     def add_tile(self, tile: Tile) -> None:
         self.tiles_2[tile.x][tile.y] = tile
         self.tile_set.add(tile)
+
+    def add_region(self, region: Region) -> None:
+        self.regions_2[region.x][region.y] = region
+        self.region_set.add(region)
 
     def get_region_indexes(self, coordinates: Coordinates) -> set[Coordinates]:
         indexes = set()

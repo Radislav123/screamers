@@ -19,7 +19,7 @@ class Action:
 
 class Move(Action):
     def execute(self, world_object: "WorldObject", *args, **kwargs) -> None:
-        direction = random.randint(0, world_object.center_tile.neighbours_amount - 1)
+        direction = random.randint(0, 5)
         projections = {}
         for tile in world_object.tiles:
             new_tile = tile.neighbours[direction]
@@ -34,7 +34,14 @@ class Move(Action):
                 new_tile.object = world_object
                 projection.tile_projection = new_tile.projection
 
+            old_region = world_object.center_tile.region
             world_object.center_tile = world_object.center_tile.neighbours[direction]
+            new_region = world_object.center_tile.region
             world_object.projections = projections
             world_object.tiles = set(world_object.projections)
+
+            if old_region != new_region:
+                old_region.world_objects[world_object.__class__].remove(world_object)
+                new_region.world_objects[world_object.__class__].add(world_object)
+
             self.executed = True

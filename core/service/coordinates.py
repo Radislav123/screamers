@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 
 class Coordinates:
-    mirror_centers: dict[tuple[Self, Self], set[Self]] = {}
+    mirror_centers: dict[tuple[Self, Self], list[Self]] = {}
 
     def __init__(self, x: int, y: int) -> None:
         self.x = x
@@ -43,7 +43,7 @@ class Coordinates:
     def __mul__(self, other: int) -> Self:
         return self.__class__(self.x * other, self.y * other)
 
-    def get_mirror_centers(self, offset: Self = None) -> set[Self]:
+    def get_mirror_centers_old(self, offset: Self = None) -> set[Self]:
         if offset is None:
             offset = self.__class__(0, 0)
         key = (self, offset)
@@ -55,6 +55,22 @@ class Coordinates:
                 centers.add(instance)
             self.mirror_centers[key] = centers
         centers = self.mirror_centers[key]
+
+        return centers
+
+    @classmethod
+    def get_mirror_centers(cls, first_center: Self, offset: Self = None) -> list[Self]:
+        if offset is None:
+            offset = ABSOLUTE_CENTER
+        key = (first_center, offset)
+        if key not in cls.mirror_centers:
+            centers = [first_center]
+            instance = first_center - offset
+            for index in range(5):
+                instance = instance.rotate_60()
+                centers.append(instance + offset)
+            cls.mirror_centers[key] = centers
+        centers = cls.mirror_centers[key]
 
         return centers
 
@@ -98,17 +114,22 @@ class Coordinates:
     def get_sorted_distances(self, others: Iterable[Self], reverse: bool = False) -> list[tuple[Self, float]]:
         return sorted(self.get_distances(others).items(), key = lambda x: x[1], reverse = reverse)
 
+    @classmethod
+    def get_first_mirror(cls, radius_in_regions: int, region_radius: int, center_offset: Self = None) -> Self:
+        if center_offset is None:
+            center_offset = ABSOLUTE_CENTER
+        offset = region_radius * 2 + 1
+        x = -region_radius + radius_in_regions + center_offset.x
+        y = offset + radius_in_regions * (offset + region_radius) + center_offset.y
+        return cls(x, y)
+
     def fix_to_cycle(self, tiles_2: "Tiles2", radius_in_regions: int, region_radius: int) -> Self:
         """Зацикливает координаты"""
 
         if self.x in tiles_2 and self.y in tiles_2[self.x]:
             instance = self
         else:
-            offset = region_radius * 2 + 1
-            x = -region_radius + radius_in_regions
-            y = offset + radius_in_regions * (offset + region_radius)
-            first_center = Coordinates(x, y)
-            mirrors = first_center.get_mirror_centers()
+            mirrors = self.get_mirror_centers(self.get_first_mirror(radius_in_regions, region_radius))
             distances = self.get_sorted_distances(mirrors)
             closest = distances[0][0]
             instance = self - closest
@@ -137,3 +158,6 @@ class Coordinates:
         """Количество шагов через границы тайлов, чтобы попасть из одного в другой"""
 
         return sum(abs(x) for x in (self - other).to_3) // 2
+
+
+ABSOLUTE_CENTER = Coordinates(0, 0)

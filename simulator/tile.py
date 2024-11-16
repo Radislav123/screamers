@@ -1,5 +1,5 @@
 import math
-from typing import Any, TYPE_CHECKING
+from typing import Any, Self, TYPE_CHECKING
 
 import arcade
 from arcade import color
@@ -94,7 +94,6 @@ class Tile(PhysicalObject):
         5: Coordinates(-1, 1)
     }
     neighbours: list["Tile"]
-    neighbours_amount = len(neighbour_offsets)
 
     def __init__(self, coordinates: Coordinates, region: "Region", *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

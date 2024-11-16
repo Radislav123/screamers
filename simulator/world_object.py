@@ -47,5 +47,5 @@ class WorldObject(PhysicalObject):
         action.executed = False
         action.timer += 1
         if action.timer >= action.period:
-            action.timer -= action.period
             action.execute(self)
+            action.timer -= action.period

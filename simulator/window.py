@@ -338,7 +338,7 @@ class Window(arcade.Window, Object):
         self.timings = defaultdict(lambda: deque(maxlen = self.settings.TIMINGS_LENGTH))
 
     def start(self) -> None:
-        self.world = World(3, 3, 0, 0, self.width, self.height)
+        self.world = World(10, 5, 100, 2, self.width, self.height)
         self.world.start()
 
         creature_projections = (y for x in self.world.creatures for y in x.projections.values())
@@ -543,11 +543,16 @@ class Window(arcade.Window, Object):
     def get_region(tile: Tile) -> set[TileProjection]:
         return set(x.projection for x in tile.region.tiles)
 
+    @staticmethod
+    def get_region_neighbours(tile: Tile) -> set[TileProjection]:
+        return set(y.projection for x in tile.region.neighbours for y in x.tiles)
+
     def on_mouse_release(self, x: int, y: int, button: int, modifiers: int) -> None:
         if not self.mouse_dragged and self.draw_tiles_tab:
             if button == MouseButtons.LEFT.value:
                 old_projections = copy.copy(self.world.map.selected_tiles)
-                if old_projections is not None:
+                deselect = True
+                if old_projections is not None and deselect:
                     for projection in old_projections:
                         projection.deselect(self.world.map)
 
@@ -555,10 +560,11 @@ class Window(arcade.Window, Object):
                 try:
                     tile = self.world.tiles_2[position.x][position.y]
                     get_tile = False
-                    get_neighbours = True
+                    get_neighbours = False
                     get_object = False
                     get_region = False
-                    assert get_tile + get_object + get_region + get_neighbours == 1
+                    get_region_neighbours = True
+                    assert get_tile + get_object + get_region + get_neighbours + get_region_neighbours == 1
 
                     if get_tile:
                         projections = self.get_tile(tile)
@@ -568,6 +574,8 @@ class Window(arcade.Window, Object):
                         projections = self.get_object(tile)
                     elif get_region:
                         projections = self.get_region(tile)
+                    elif get_region_neighbours:
+                        projections = self.get_region_neighbours(tile)
                     else:
                         raise ValueError("There is nothing to select.")
 
