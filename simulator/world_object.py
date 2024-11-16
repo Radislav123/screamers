@@ -1,4 +1,3 @@
-import copy
 from typing import Any, Iterable, TYPE_CHECKING
 
 from arcade.shape_list import create_polygon

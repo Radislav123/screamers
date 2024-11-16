@@ -338,7 +338,7 @@ class Window(arcade.Window, Object):
         self.timings = defaultdict(lambda: deque(maxlen = self.settings.TIMINGS_LENGTH))
 
     def start(self) -> None:
-        self.world = World(50, 100, 2, self.width, self.height)
+        self.world = World(3, 3, 0, 0, self.width, self.height)
         self.world.start()
 
         creature_projections = (y for x in self.world.creatures for y in x.projections.values())
@@ -541,40 +541,49 @@ class Window(arcade.Window, Object):
 
     @staticmethod
     def get_region(tile: Tile) -> set[TileProjection]:
-        return set(x.projection for x in tile.region)
+        return set(x.projection for x in tile.region.tiles)
 
     def on_mouse_release(self, x: int, y: int, button: int, modifiers: int) -> None:
-        if not self.mouse_dragged and button == MouseButtons.LEFT.value and self.draw_tiles_tab:
-            old_projections = copy.copy(self.world.map.selected_tiles)
-            if old_projections is not None:
-                for projection in old_projections:
-                    projection.deselect(self.world.map)
+        if not self.mouse_dragged and self.draw_tiles_tab:
+            if button == MouseButtons.LEFT.value:
+                old_projections = copy.copy(self.world.map.selected_tiles)
+                if old_projections is not None:
+                    for projection in old_projections:
+                        projection.deselect(self.world.map)
 
-            position = self.world.map.point_to_coordinates(x, y)
-            try:
-                tile = self.world.tiles_2[position.x][position.y]
-                get_tile = False
-                get_neighbours = False
-                get_object = False
-                get_region = True
-                assert get_tile + get_object + get_region + get_neighbours == 1
+                position = self.world.map.point_to_coordinates(x, y)
+                try:
+                    tile = self.world.tiles_2[position.x][position.y]
+                    get_tile = False
+                    get_neighbours = True
+                    get_object = False
+                    get_region = False
+                    assert get_tile + get_object + get_region + get_neighbours == 1
 
-                if get_tile:
-                    projections = self.get_tile(tile)
-                elif get_neighbours:
-                    projections = self.get_neighbours(tile)
-                elif get_object:
-                    projections = self.get_object(tile)
-                elif get_region:
-                    projections = self.get_region(tile)
-                else:
-                    raise ValueError("There is nothing to select.")
+                    if get_tile:
+                        projections = self.get_tile(tile)
+                    elif get_neighbours:
+                        projections = self.get_neighbours(tile)
+                    elif get_object:
+                        projections = self.get_object(tile)
+                    elif get_region:
+                        projections = self.get_region(tile)
+                    else:
+                        raise ValueError("There is nothing to select.")
 
-                if old_projections != projections:
-                    for projection in projections:
-                        projection.on_click(self.world.map)
-            except KeyError:
-                pass
+                    if old_projections != projections:
+                        for projection in projections:
+                            projection.on_click(self.world.map)
+                except KeyError:
+                    pass
+            elif button == MouseButtons.RIGHT.value:
+                position = self.world.map.point_to_coordinates(x, y)
+                try:
+                    tile = self.world.tiles_2[position.x][position.y]
+                    print(tile)
+                except KeyError:
+                    pass
+
         self.mouse_dragged = False
 
     def on_mouse_drag(self, x: int, y: int, dx: int, dy: int, buttons: int, modifiers: int) -> bool | None:

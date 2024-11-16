@@ -11,7 +11,7 @@ from simulator.world_object import WorldObject
 
 
 if TYPE_CHECKING:
-    from simulator.world import Map, Tiles2
+    from simulator.world import Map, Region, Tiles2
 
 
 class TileProjection(ProjectionObject):
@@ -96,7 +96,7 @@ class Tile(PhysicalObject):
     neighbours: list["Tile"]
     neighbours_amount = len(neighbour_offsets)
 
-    def __init__(self, coordinates: Coordinates, *args, **kwargs) -> None:
+    def __init__(self, coordinates: Coordinates, region: "Region", *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.coordinates = coordinates
         self.x = self.coordinates.x
@@ -109,17 +109,16 @@ class Tile(PhysicalObject):
         self.projection = TileProjection(self.x, self.y)
 
         self.object: WorldObject | None = None
-        self.region: set[Tile] | None = None
+        self.region = region
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.coordinates})"
 
     # https://www.redblobgames.com/grids/hexagons/#wraparound
-    def init(self, tiles_2: "Tiles2", world_radius: int) -> Any:
+    def init(self, tiles_2: "Tiles2", radius_in_regions: int, region_radius: int) -> Any:
         self.neighbours = []
 
         for direction, offset in self.neighbour_offsets.items():
-            neighbour_coordinates = (self.coordinates + offset).fix_to_cycle(world_radius)
-
+            neighbour_coordinates = (self.coordinates + offset).fix_to_cycle(tiles_2, radius_in_regions, region_radius)
             neighbour = tiles_2[neighbour_coordinates.x][neighbour_coordinates.y]
             self.neighbours.append(neighbour)

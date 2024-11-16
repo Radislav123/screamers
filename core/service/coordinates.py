@@ -1,10 +1,14 @@
 import copy
 import math
-from typing import Iterable, Self
+from typing import Iterable, Self, TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from simulator.world import Tiles2
 
 
 class Coordinates:
-    mirror_centers: dict[int, dict[int | None, "Self"]] = {}
+    mirror_centers: dict[tuple[Self, Self], set[Self]] = {}
 
     def __init__(self, x: int, y: int) -> None:
         self.x = x
@@ -39,17 +43,20 @@ class Coordinates:
     def __mul__(self, other: int) -> Self:
         return self.__class__(self.x * other, self.y * other)
 
-    @classmethod
-    def get_mirror_centers(cls, radius: int) -> dict[int | None, "Self"]:
-        if radius not in cls.mirror_centers:
-            next_center = Coordinates.from_3(radius * 2 + 1, -radius, -radius - 1)
-            centers = {None: Coordinates(0, 0), 0: next_center}
-            for index in range(1, 6):
-                next_center = next_center.rotate_60()
-                centers[index] = next_center
-            cls.mirror_centers[radius] = centers
+    def get_mirror_centers(self, offset: Self = None) -> set[Self]:
+        if offset is None:
+            offset = self.__class__(0, 0)
+        key = (self, offset)
+        if key not in self.mirror_centers:
+            centers = set()
+            instance = self - offset
+            for index in range(6):
+                instance = instance.rotate_60()
+                centers.add(instance)
+            self.mirror_centers[key] = centers
+        centers = self.mirror_centers[key]
 
-        return cls.mirror_centers[radius]
+        return centers
 
     def copy(self) -> Self:
         return copy.deepcopy(self)
@@ -91,22 +98,42 @@ class Coordinates:
     def get_sorted_distances(self, others: Iterable[Self], reverse: bool = False) -> list[tuple[Self, float]]:
         return sorted(self.get_distances(others).items(), key = lambda x: x[1], reverse = reverse)
 
-    def fix_to_cycle(self, radius: int) -> Self:
+    def fix_to_cycle(self, tiles_2: "Tiles2", radius_in_regions: int, region_radius: int) -> Self:
         """Зацикливает координаты"""
 
-        mirrors = Coordinates.get_mirror_centers(radius)
-        distances = self.get_sorted_distances(mirrors.values())
-        closest = distances[0][0]
-        return self - closest
+        if self.x in tiles_2 and self.y in tiles_2[self.x]:
+            instance = self
+        else:
+            offset = region_radius * 2 + 1
+            x = -region_radius + radius_in_regions
+            y = offset + radius_in_regions * (offset + region_radius)
+            first_center = Coordinates(x, y)
+            mirrors = first_center.get_mirror_centers()
+            distances = self.get_sorted_distances(mirrors)
+            closest = distances[0][0]
+            instance = self - closest
+        return instance
 
-    def rotate_60(self) -> Self:
-        return self.__class__.from_3(-self.b, -self.c, -self.a)
+    def rotate_60(self, offset: Self = None) -> Self:
+        if offset is None:
+            instance = self.__class__.from_3(-self.b, -self.c, -self.a)
+        else:
+            absolute = self - offset
+            instance = self.__class__.from_3(-absolute.b, -absolute.c, -absolute.a) + offset
+        return instance
 
-    def rotate_180(self) -> Self:
-        return self.__class__.from_3(-self.a, -self.b, -self.c)
+    def rotate_180(self, offset: Self = None) -> Self:
+        if offset is None:
+            instance = self.__class__.from_3(-self.a, -self.b, -self.c)
+        else:
+            absolute = self - offset
+            instance = self.__class__.from_3(-absolute.a, -absolute.b, -absolute.c)
+        return instance
 
     def distance_2(self, other: "Self") -> float:
         return math.dist(self.to_2, other.to_2)
 
-    def distance_3(self, other: "Self") -> float:
-        return sum(abs(x) for x in (self - other).to_3) / 2
+    def distance_3(self, other: "Self") -> int:
+        """Количество шагов через границы тайлов, чтобы попасть из одного в другой"""
+
+        return sum(abs(x) for x in (self - other).to_3) // 2

@@ -1,4 +1,3 @@
-import copy
 import datetime
 import math
 import random
@@ -12,15 +11,13 @@ from core.service.coordinates import Coordinates
 from core.service.object import Object, ProjectionObject
 from simulator.base import Base, BaseProjection
 from simulator.creature import Creature, CreatureProjection
+from simulator.region import Region
 from simulator.tile import Tile, TileProjection
 from simulator.world_object import WorldObject
 
 
 type Tiles2 = dict[int, dict[int, Tile]]
-type Tiles3 = dict[int, dict[int, [dict[int, Tile]]]]
-type Region = set[Tile]
 type Regions2 = dict[int, dict[int, Region]]
-type Regions3 = dict[int, dict[int, dict[int, Region]]]
 
 
 class Map(ProjectionObject):
@@ -179,7 +176,8 @@ class Map(ProjectionObject):
 class World(Object):
     def __init__(
             self,
-            radius: int,
+            radius_in_regions: int,
+            region_radius: int,
             population: int,
             bases_number: int,
             map_width: int,
@@ -199,18 +197,20 @@ class World(Object):
         self.center_x = 0
         self.center_y = 0
         # в тайлах
-        self.radius = radius
-        self.region_radius = 5
+        Region.radius = region_radius
+        self.region_radius = Region.radius
+        # количество радиусов региона в радиусе мира
+        self.radius_in_regions = radius_in_regions
+        self.radius = self.radius_in_regions * (self.region_radius * 2 + 1) + self.region_radius
 
         self.creatures = SortedSet[Creature]()
         self.bases = SortedSet[Base]()
         self.tiles_2: Tiles2 = defaultdict(dict)
-        self.tiles_3: Tiles3 = defaultdict(lambda: defaultdict(dict))
         self.tile_set = set[Tile]()
-        self.regions_2: Regions2 = defaultdict(lambda: defaultdict(set))
-        self.regions_3: Regions3 = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
+        self.regions_2: Regions2 = defaultdict(dict)
+        self.region_set = set[Region]()
         self.map = Map(map_width, map_height)
-        self.prepare_tiles()
+        self.prepare()
 
     def start(self) -> None:
         safe_radius = max(Base.radius, Creature.radius)
@@ -226,9 +226,9 @@ class World(Object):
                 object_indexes.add(world_object.center_tile.coordinates)
                 object_indexes = self.append_layers(object_indexes, world_object.radius)
                 world_object.init(self.tiles_2[index.x][index.y] for index in object_indexes)
-                object_indexes = self.append_layers((x.coordinates for x in world_object.tiles), safe_radius)
+                occupied_indexes = self.append_layers((x.coordinates for x in world_object.tiles), safe_radius)
 
-                indexes.difference_update(object_indexes)
+                indexes.difference_update(occupied_indexes)
                 objects_set.add(world_object)
 
         init(self.bases_number, Base, self.bases)
@@ -240,87 +240,73 @@ class World(Object):
             creature.stop()
         for base in self.bases:
             base.stop()
-        self.creatures.clear()
-        self.bases.clear()
+        for tile in self.tile_set:
+            tile.stop()
+        for region in self.region_set:
+            region.stop()
 
     def on_update(self) -> None:
-        for base in self.bases:
-            base.on_update()
-        for creature in self.creatures:
-            creature.on_update()
+        # todo: сделать обход, минимизирующий обработку соседних регионов одновременно при параллельной обработке
+        for region in self.region_set:
+            region.on_update()
         self.age += 1
 
-    @staticmethod
-    def append_layers_old(tiles: set[Tile], layers_number: int) -> set[Tile]:
-        tiles = copy.copy(tiles)
-        for _ in range(layers_number):
-            new_tiles = set()
-            for tile in tiles:
-                new_tiles.add(tile)
-                new_tiles.update(tile.neighbours)
-            tiles = new_tiles
-        return tiles
-
-    # todo: оптимизировать
-    @staticmethod
-    def append_layers(indexes: Iterable[Coordinates], layers_number: int) -> set[Coordinates]:
+    # todo: оптимизировать, обходя только внешние слои
+    def append_layers(
+            self,
+            indexes: Iterable[Coordinates],
+            layers_number: int,
+            real_neighbours: bool = False
+    ) -> set[Coordinates]:
         indexes = set(indexes)
         for _ in range(layers_number):
             new_indexes = set()
             for index in indexes:
                 new_indexes.add(index)
-                for offset in Tile.neighbour_offsets.values():
-                    new_indexes.add(index + offset)
+                if real_neighbours:
+                    new_indexes.update(
+                        x.coordinates.fix_to_cycle(self.radius_in_regions, self.region_radius)
+                        for x in self.tiles_2[index.x][index.y].neighbours
+                    )
+                else:
+                    for offset in Tile.neighbour_offsets.values():
+                        new_indexes.add(index + offset)
             indexes = new_indexes
         return indexes
 
     # https://www.redblobgames.com/grids/hexagons/#map-storage
     # todo: добавить сохранение/кэширование карты и соседей для более быстрой загрузки
-    def prepare_tiles(self) -> None:
-        for x in range(-self.radius, self.radius + 1):
-            for y in range(-self.radius, self.radius + 1):
-                coordinates = Coordinates(x, y)
-                if coordinates.in_radius(self.radius + 1):
-                    tile = Tile(coordinates)
-                    self.add_tile(tile)
-
-        for tile in self.tile_set:
-            tile.init(self.tiles_2, self.radius)
-
+    def prepare(self) -> None:
         offset = self.region_radius * 2 + 1
-        self.add_region(Coordinates(0, 0))
-        # https://www.redblobgames.com/grids/hexagons/#rotation
-        inited = True
-        layer = 0
-        while inited:
-            layer += 1
+        region_centers = [Coordinates(0, 0)]
+        for layer in range(1, self.radius_in_regions + 1):
             for number in range(layer):
                 x = self.region_radius * layer + number * (self.region_radius + 1)
                 y = -(layer * offset - number * self.region_radius)
                 coordinates = Coordinates(x, y)
-                inited = self.add_region(coordinates)
-                for _ in range(5):
+                for _ in range(6):
                     coordinates = coordinates.rotate_60()
-                    self.add_region(coordinates)
+                    region_centers.append(coordinates)
+
+        for coordinates in region_centers:
+            region = Region(coordinates)
+            region_indexes = self.get_region_indexes(coordinates)
+            region_tiles = set()
+            for tile_index in region_indexes:
+                tile = Tile(tile_index, region)
+                self.add_tile(tile)
+                region_tiles.add(tile)
+            region.init(region_tiles)
+
+        for tile in self.tile_set:
+            tile.init(self.tiles_2, self.radius_in_regions, self.region_radius)
 
     def add_tile(self, tile: Tile) -> None:
         self.tiles_2[tile.x][tile.y] = tile
-        self.tiles_3[tile.a][tile.b][tile.c] = tile
         self.tile_set.add(tile)
 
-    def add_region(self, coordinates: Coordinates) -> bool:
-        coordinates_set = set()
-        coordinates_set.add(coordinates)
-        region = set()
-        inited = False
-        for i in self.append_layers(coordinates_set, self.region_radius):
-            if i.x in self.tiles_2 and i.y in self.tiles_2[i.x]:
-                region.add(self.tiles_2[i.x][i.y])
-                inited = True
-        self.regions_2[coordinates.x][coordinates.y] = region
-        self.regions_3[coordinates.a][coordinates.b][coordinates.c] = region
-
-        for tile in region:
-            tile.region = region
-
-        return inited
+    def get_region_indexes(self, coordinates: Coordinates) -> set[Coordinates]:
+        indexes = set()
+        indexes.add(coordinates)
+        indexes = self.append_layers(indexes, self.region_radius)
+        return indexes
