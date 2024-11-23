@@ -26,8 +26,8 @@ class WorldObject(PhysicalObject):
     is_base = False
     is_creature = False
 
-    def __init__(self, center_tile: "Tile", time: int, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, center_tile: "Tile", time: int) -> None:
+        super().__init__()
         self.center_tile = center_tile
         self.tiles: set["Tile"] | None = None
         self.age = 0

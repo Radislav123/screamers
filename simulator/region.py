@@ -26,8 +26,8 @@ class Region(PhysicalObject):
     neighbours: list[Self]
     radius: int = None
 
-    def __init__(self, coordinates: Coordinates, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, coordinates: Coordinates) -> None:
+        super().__init__()
         self.coordinates = coordinates
         self.x = self.coordinates.x
         self.y = self.coordinates.y
@@ -57,7 +57,7 @@ class Region(PhysicalObject):
         neighbour_indexes = [index.fix_to_cycle(tiles_2, radius_in_regions, self.radius) for index in mirror_centers]
         self.neighbours = [regions_2[index.x][index.y] for index in neighbour_indexes]
 
-    def on_update(self, delta_time: int, time: int, regions_2: "Regions2", bases: "BaseSet", *args, **kwargs) -> Any:
+    def on_update(self, delta_time: int, time: int, regions_2: "Regions2", bases: "BaseSet") -> Any:
         for base in self.world_objects[Base]:
             base.on_update(time)
         for creature in self.world_objects[Creature]:

@@ -4,21 +4,21 @@ from arcade.shape_list import Shape
 
 from core.service import settings
 from core.service.logger import Logger
+from core.service.settings import Settings
+
+
+class ThirdPartyMixin:
+    settings = Settings()
+    logger = Logger(__qualname__)
 
 
 class Object:
     settings = settings.Settings()
     counter = 0
+    logger = Logger(__qualname__)
 
-    def __new__(cls, *args, **kwargs) -> "Self":
-        instance = super().__new__(cls)
-        instance.logger = Logger(cls.__name__)
-        return instance
-
-    def __init__(self, *args, **kwargs) -> None:
-        if args or kwargs:
-            print(args, kwargs)
-        super().__init__(*args, **kwargs)
+    def __init__(self) -> None:
+        super().__init__()
         self.id = self.counter
         self.__class__.counter += 1
 
@@ -36,8 +36,8 @@ class Object:
 
 
 class ProjectionObject(Object):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self) -> None:
+        super().__init__()
         self.inited = False
         self.shape: Shape | None = None
 

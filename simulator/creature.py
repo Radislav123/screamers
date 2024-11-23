@@ -1,5 +1,5 @@
 import random
-from typing import Any, TYPE_CHECKING
+from typing import Any, Sequence, TYPE_CHECKING
 
 from arcade import color
 
@@ -15,8 +15,8 @@ if TYPE_CHECKING:
 
 
 class CreatureProjection(WorldObjectProjection):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self) -> None:
+        super().__init__()
         self.color = color.APRICOT
 
 
@@ -25,7 +25,7 @@ class Creature(WorldObject):
     projections: dict["Tile", projection_class]
     is_creature = True
 
-    def __init__(self, center_tile: "Tile", time: int, bases: list["Base"]) -> None:
+    def __init__(self, center_tile: "Tile", time: int, bases: Sequence["Base"]) -> None:
         super().__init__(center_tile, time)
         self.start_base, self.finish_base = random.sample(bases, 2)
         self.scream_radius = 10
@@ -37,7 +37,7 @@ class Creature(WorldObject):
         self.last_hear_self_coordinates: Coordinates | None = None
         self.base_reach_counter = 0
 
-    def on_update(self, time: int, region: "Region", regions_2: "Regions2", bases: "BaseSet", *args, **kwargs) -> Any:
+    def on_update(self, time: int, region: "Region", regions_2: "Regions2", bases: "BaseSet") -> Any:
         delta_time = time - self.last_acting_time
         self.last_acting_time = time
         if self.direction_change_timer > self.direction_reset_period:

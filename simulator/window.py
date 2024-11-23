@@ -12,13 +12,13 @@ from arcade.future.input import MouseButtons
 from arcade.types import Color
 from matplotlib import pyplot
 
-from core.service.object import Object
+from core.service.object import ThirdPartyMixin
 from simulator.creature import Creature
 from simulator.tile import Tile, TileProjection
 from simulator.world import World
 
 
-class TextTab(arcade.gui.UIFlatButton, Object):
+class TextTab(arcade.gui.UIFlatButton, ThirdPartyMixin):
     default_style = {
         "normal": arcade.gui.UIFlatButton.UIStyle(
             bg = color.BLACK
@@ -116,7 +116,7 @@ class TextTab(arcade.gui.UIFlatButton, Object):
         self.text = str(self.state)
 
 
-class DrawGraphsTab(TextTab, Object):
+class DrawGraphsTab(TextTab):
     def set(self) -> None:
         super().set()
         arcade.enable_timings()
@@ -130,7 +130,7 @@ class DrawGraphsTab(TextTab, Object):
             pass
 
 
-class TextTabContainer(Object):
+class TextTabContainer(ThirdPartyMixin):
     class Corner(arcade.gui.UIAnchorLayout):
         children: list[TextTab]
 
@@ -204,7 +204,7 @@ class TextTabContainer(Object):
                         tab.tab_label.text = tab.tab_label._text()
 
 
-class UIManager(arcade.gui.UIManager, Object):
+class UIManager(arcade.gui.UIManager, ThirdPartyMixin):
     def add_tabs(self, tabs: TextTabContainer) -> TextTabContainer:
         for corner in tabs.corners:
             self.add(corner)
@@ -218,7 +218,7 @@ class UIManager(arcade.gui.UIManager, Object):
                 tab.tab_label.set_position()
 
 
-class PerformanceGraph(arcade.PerfGraph, Object):
+class PerformanceGraph(arcade.PerfGraph, ThirdPartyMixin):
     def __init__(self, window: "Window", *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -304,7 +304,7 @@ class PerformanceGraph(arcade.PerfGraph, Object):
             arcade.draw_line_strip(point_list, self.line_color)
 
 
-class Window(arcade.Window, Object):
+class Window(arcade.Window, ThirdPartyMixin):
     # desired_tps = int(1 / update_rate)
     # update_rate = 1 / tps
     desired_tps: int

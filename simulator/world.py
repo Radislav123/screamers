@@ -13,7 +13,6 @@ from simulator.base import Base, BaseProjection
 from simulator.creature import Creature, CreatureProjection
 from simulator.region import Region
 from simulator.tile import Tile, TileProjection
-from simulator.world_object import WorldObject
 
 
 type Tiles2 = dict[int, dict[int, Tile]]
@@ -216,37 +215,32 @@ class World(Object):
         self.prepare()
 
     def start(self) -> None:
-        safe_radius = Base.radius
         indexes = set(x.coordinates for x in self.tile_set)
+        for _ in range(self.bases_number):
+            center_index = random.choice(list(indexes))
+            center_tile = self.tiles_2[center_index.x][center_index.y]
+            base = Base(center_tile, self.age)
 
-        def init(amount: int, object_class: type[WorldObject], objects_set: SortedSet[WorldObject], *args) -> None:
-            for _ in range(amount):
-                index = random.choice(list(indexes))
-                center_tile = self.tiles_2[index.x][index.y]
-                world_object = object_class(center_tile, self.age, *args)
+            base_indexes = set()
+            base_indexes.add(base.center_tile.coordinates)
+            base_indexes = Coordinates.append_layers(self.tiles_2, base_indexes, base.radius, True)
+            base.init(self.tiles_2[index.x][index.y] for index in base_indexes)
+            occupied_indexes = Coordinates.append_layers(self.tiles_2, base_indexes, base.radius, True)
 
-                object_indexes = set()
-                object_indexes.add(world_object.center_tile.coordinates)
-                if isinstance(world_object, Base):
-                    object_indexes = Coordinates.append_layers(self.tiles_2, object_indexes, world_object.radius, True)
-                world_object.init(self.tiles_2[index.x][index.y] for index in object_indexes)
-                occupied_indexes = Coordinates.append_layers(
-                    self.tiles_2, (x.coordinates for x in world_object.tiles), safe_radius
-                )
+            indexes.difference_update(occupied_indexes)
+            self.bases.add(base)
+            center_tile.region.world_objects[Base].add(base)
 
-                indexes.difference_update(occupied_indexes)
-                objects_set.add(world_object)
+        indexes = list(indexes)
+        for _ in range(self.population):
+            list_index = random.randint(0, len(indexes) - 1)
+            center_index = indexes.pop(list_index)
+            center_tile = self.tiles_2[center_index.x][center_index.y]
+            creature = Creature(center_tile, self.age, self.bases)
 
-        init(self.bases_number, Base, self.bases)
-        bases = list(self.bases)
-        init(self.population, Creature, self.creatures, bases)
-
-        for creature in self.creatures:
-            region = creature.center_tile.region
-            region.world_objects[Creature].add(creature)
-        for base in self.bases:
-            region = base.center_tile.region
-            region.world_objects[Base].add(base)
+            creature.init(self.tiles_2[index.x][index.y] for index in {center_index})
+            self.creatures.add(creature)
+            center_tile.region.world_objects[Creature].add(creature)
 
     def stop(self) -> None:
         for creature in self.creatures:

@@ -10,12 +10,12 @@ class Action:
         self.period: float | None = 10
         self.timer: float = 0
 
-    def execute(self, world_object: "WorldObject", *args, **kwargs) -> Any:
+    def execute(self, world_object: "WorldObject") -> Any:
         pass
 
 
 class Move(Action):
-    def execute(self, world_object: "WorldObject", *args, **kwargs) -> Union["WorldObject", None]:
+    def execute(self, world_object: "WorldObject") -> Union["WorldObject", None]:
         projections = {}
         blocker = None
         for tile in world_object.tiles:

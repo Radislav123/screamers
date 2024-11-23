@@ -11,8 +11,8 @@ if TYPE_CHECKING:
 
 
 class BaseProjection(WorldObjectProjection):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self) -> None:
+        super().__init__()
         self.color = color.RED_BROWN
 
 
@@ -22,7 +22,7 @@ class Base(WorldObject):
     radius = 5
     is_base = True
 
-    def on_update(self, time: int, *args, **kwargs) -> Any:
+    def on_update(self, time: int) -> Any:
         delta_time = time - self.last_acting_time
         self.last_acting_time = time
         # todo: добавить перемещение к "выбранным" целям

@@ -87,8 +87,8 @@ class TileProjection(ProjectionObject):
 class Tile(PhysicalObject):
     neighbours: list["Tile"]
 
-    def __init__(self, coordinates: Coordinates, region: "Region", *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, coordinates: Coordinates, region: "Region") -> None:
+        super().__init__()
         self.coordinates = coordinates
         self.x = self.coordinates.x
         self.y = self.coordinates.y
