@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING
+import random
+from typing import Any, TYPE_CHECKING
 
 from arcade import color
 
@@ -18,4 +19,20 @@ class BaseProjection(WorldObjectProjection):
 class Base(WorldObject):
     projection_class = BaseProjection
     projections: dict["Tile", projection_class]
-    radius = 1
+    radius = 5
+    is_base = True
+
+    def on_update(self, time: int, *args, **kwargs) -> Any:
+        delta_time = time - self.last_acting_time
+        self.last_acting_time = time
+        # todo: добавить перемещение к "выбранным" целям
+        self.direction = random.randint(0, 5)
+
+        action = self.move
+        action.timer += delta_time
+
+        if action.timer >= action.period:
+            action.execute(self)
+            action.timer -= action.period
+
+        self.age += delta_time

@@ -1,14 +1,15 @@
 import copy
 import math
-from typing import Iterable, Self, TYPE_CHECKING
+from typing import Iterable, Self, TYPE_CHECKING, Union
 
 
 if TYPE_CHECKING:
-    from simulator.world import Tiles2
+    from simulator.world import Regions2, Tiles2
 
 
 class Coordinates:
     mirror_centers: dict[tuple[Self, Self], list[Self]] = {}
+    __slots__ = ["x", "y", "a", "b", "c", "to_2", "to_3"]
 
     def __init__(self, x: int, y: int) -> None:
         self.x = x
@@ -18,7 +19,6 @@ class Coordinates:
         self.b = y
         self.c = -x - y
 
-        self.all = copy.copy(self.__dict__)
         self.to_2 = (self.x, self.y)
         self.to_3 = (self.a, self.b, self.c)
 
@@ -35,28 +35,13 @@ class Coordinates:
         return self.__class__(self.x - other.x, self.y - other.y)
 
     def __repr__(self) -> Self:
-        return f"{self.__class__.__name__}{self.all}"
+        return f"{self.__class__.__name__}{self.to_2, self.to_3}"
 
     def __floordiv__(self, other: int) -> Self:
         return self.__class__(self.x // other, self.y // other)
 
     def __mul__(self, other: int) -> Self:
         return self.__class__(self.x * other, self.y * other)
-
-    def get_mirror_centers_old(self, offset: Self = None) -> set[Self]:
-        if offset is None:
-            offset = self.__class__(0, 0)
-        key = (self, offset)
-        if key not in self.mirror_centers:
-            centers = set()
-            instance = self - offset
-            for index in range(6):
-                instance = instance.rotate_60()
-                centers.add(instance)
-            self.mirror_centers[key] = centers
-        centers = self.mirror_centers[key]
-
-        return centers
 
     @classmethod
     def get_mirror_centers(cls, first_center: Self, offset: Self = None) -> list[Self]:
@@ -159,5 +144,33 @@ class Coordinates:
 
         return sum(abs(x) for x in (self - other).to_3) // 2
 
+    # todo: оптимизировать, обходя только внешние слои
+    @staticmethod
+    def append_layers(
+            objects_2: Union["Tiles2", "Regions2", None],
+            indexes: Iterable["Coordinates"],
+            layers_number: int,
+            real_neighbours: bool = False
+    ) -> set["Coordinates"]:
+        indexes = set(indexes)
+        for _ in range(layers_number):
+            new_indexes = set()
+            for index in indexes:
+                new_indexes.add(index)
+                if real_neighbours:
+                    new_indexes.update(x.coordinates for x in objects_2[index.x][index.y].neighbours)
+                else:
+                    new_indexes.update(index + offset for offset in NEIGHBOUR_OFFSETS.values())
+            indexes = new_indexes
+        return indexes
+
 
 ABSOLUTE_CENTER = Coordinates(0, 0)
+NEIGHBOUR_OFFSETS = {
+    0: Coordinates(0, 1),
+    1: Coordinates(1, 0),
+    2: Coordinates(1, -1),
+    3: Coordinates(0, -1),
+    4: Coordinates(-1, 0),
+    5: Coordinates(-1, 1)
+}

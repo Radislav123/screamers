@@ -338,7 +338,7 @@ class Window(arcade.Window, Object):
         self.timings = defaultdict(lambda: deque(maxlen = self.settings.TIMINGS_LENGTH))
 
     def start(self) -> None:
-        self.world = World(10, 5, 100, 2, self.width, self.height)
+        self.world = World(3, 5, 20, 2, self.width, self.height)
         self.world.start()
 
         creature_projections = (y for x in self.world.creatures for y in x.projections.values())
@@ -507,10 +507,10 @@ class Window(arcade.Window, Object):
         if self.draw_graphs_tab:
             self.graphs.draw()
 
-    def on_update(self, delta_time: float) -> None:
+    def on_update(self, _: float) -> None:
         start = time.time()
         try:
-            self.world.on_update()
+            self.world.on_update(1)
             self.tab_container.update_all()
         except Exception as error:
             error.window = self

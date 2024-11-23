@@ -23,13 +23,19 @@ class WorldObjectProjection(ProjectionObject):
 class WorldObject(PhysicalObject):
     projection_class: type[WorldObjectProjection]
     projections: dict["Tile", WorldObjectProjection]
-    radius = 0
+    is_base = False
+    is_creature = False
 
-    def __init__(self, center_tile: "Tile", *args, **kwargs) -> None:
+    def __init__(self, center_tile: "Tile", time: int, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.center_tile = center_tile
         self.tiles: set["Tile"] | None = None
+        self.age = 0
+        self.direction: int = 0
         self.resources = 0
+        self.last_acting_time = time
+        self.act_period = 5
+        self.act_remainder = self.id % self.act_period
 
         self.move = Move()
 
@@ -41,11 +47,3 @@ class WorldObject(PhysicalObject):
             projection = self.projection_class()
             self.projections[tile] = projection
             projection.tile_projection = tile.projection
-
-    def on_update(self, *args, **kwargs) -> Any:
-        action = self.move
-        action.executed = False
-        action.timer += 1
-        if action.timer >= action.period:
-            action.execute(self)
-            action.timer -= action.period

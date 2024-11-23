@@ -1,5 +1,4 @@
-import random
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, Union
 
 
 if TYPE_CHECKING:
@@ -8,24 +7,23 @@ if TYPE_CHECKING:
 
 class Action:
     def __init__(self) -> None:
-        self.default_period: float | None = 1
-        self.period: float | None = 1
+        self.period: float | None = 10
         self.timer: float = 0
-        self.executed = False
 
-    def execute(self, world_object: "WorldObject", *args, **kwargs) -> None:
+    def execute(self, world_object: "WorldObject", *args, **kwargs) -> Any:
         pass
 
 
 class Move(Action):
-    def execute(self, world_object: "WorldObject", *args, **kwargs) -> None:
-        direction = random.randint(0, 5)
+    def execute(self, world_object: "WorldObject", *args, **kwargs) -> Union["WorldObject", None]:
         projections = {}
+        blocker = None
         for tile in world_object.tiles:
-            new_tile = tile.neighbours[direction]
+            new_tile = tile.neighbours[world_object.direction]
             if new_tile.object is None or new_tile.object is world_object:
                 projections[new_tile] = world_object.projections[tile]
             else:
+                blocker = new_tile.object
                 break
         else:
             for tile in world_object.tiles:
@@ -35,7 +33,7 @@ class Move(Action):
                 projection.tile_projection = new_tile.projection
 
             old_region = world_object.center_tile.region
-            world_object.center_tile = world_object.center_tile.neighbours[direction]
+            world_object.center_tile = world_object.center_tile.neighbours[world_object.direction]
             new_region = world_object.center_tile.region
             world_object.projections = projections
             world_object.tiles = set(world_object.projections)
@@ -44,4 +42,4 @@ class Move(Action):
                 old_region.world_objects[world_object.__class__].remove(world_object)
                 new_region.world_objects[world_object.__class__].add(world_object)
 
-            self.executed = True
+        return blocker

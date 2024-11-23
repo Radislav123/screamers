@@ -1,11 +1,11 @@
 import math
-from typing import Any, Self, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 import arcade
 from arcade import color
 from arcade.shape_list import Shape
 
-from core.service.coordinates import Coordinates
+from core.service.coordinates import Coordinates, NEIGHBOUR_OFFSETS
 from core.service.object import PhysicalObject, ProjectionObject
 from simulator.world_object import WorldObject
 
@@ -85,14 +85,6 @@ class TileProjection(ProjectionObject):
 
 
 class Tile(PhysicalObject):
-    neighbour_offsets = {
-        0: Coordinates(0, 1),
-        1: Coordinates(1, 0),
-        2: Coordinates(1, -1),
-        3: Coordinates(0, -1),
-        4: Coordinates(-1, 0),
-        5: Coordinates(-1, 1)
-    }
     neighbours: list["Tile"]
 
     def __init__(self, coordinates: Coordinates, region: "Region", *args, **kwargs) -> None:
@@ -117,7 +109,7 @@ class Tile(PhysicalObject):
     def init(self, tiles_2: "Tiles2", radius_in_regions: int, region_radius: int) -> Any:
         self.neighbours = []
 
-        for direction, offset in self.neighbour_offsets.items():
+        for direction, offset in NEIGHBOUR_OFFSETS.items():
             neighbour_coordinates = (self.coordinates + offset).fix_to_cycle(tiles_2, radius_in_regions, region_radius)
             neighbour = tiles_2[neighbour_coordinates.x][neighbour_coordinates.y]
             self.neighbours.append(neighbour)

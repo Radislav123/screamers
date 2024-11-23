@@ -18,6 +18,8 @@ from simulator.world_object import WorldObject
 
 type Tiles2 = dict[int, dict[int, Tile]]
 type Regions2 = dict[int, dict[int, Region]]
+type CreatureSet = set[Creature] | SortedSet[Creature]
+type BaseSet = set[Base] | SortedSet[Base]
 
 
 class Map(ProjectionObject):
@@ -203,9 +205,10 @@ class World(Object):
         self.radius_in_regions = radius_in_regions
         self.radius = self.radius_in_regions * (self.region_radius * 2 + 1) + self.region_radius
 
-        self.creatures: set[Creature] | SortedSet[Creature] = SortedSet()
-        self.bases: set[Base] | SortedSet[Base] = SortedSet()
+        self.creatures: CreatureSet = SortedSet()
+        self.bases: BaseSet = SortedSet()
         self.tiles_2: Tiles2 = defaultdict(dict)
+        Coordinates.tiles_2 = self.tiles_2
         self.tile_set = set[Tile]()
         self.regions_2: Regions2 = defaultdict(dict)
         self.region_set = set[Region]()
@@ -213,20 +216,23 @@ class World(Object):
         self.prepare()
 
     def start(self) -> None:
-        safe_radius = max(Base.radius, Creature.radius)
+        safe_radius = Base.radius
         indexes = set(x.coordinates for x in self.tile_set)
 
         def init(amount: int, object_class: type[WorldObject], objects_set: SortedSet[WorldObject], *args) -> None:
             for _ in range(amount):
                 index = random.choice(list(indexes))
                 center_tile = self.tiles_2[index.x][index.y]
-                world_object = object_class(center_tile, *args)
+                world_object = object_class(center_tile, self.age, *args)
 
                 object_indexes = set()
                 object_indexes.add(world_object.center_tile.coordinates)
-                object_indexes = self.append_layers(object_indexes, world_object.radius, True)
+                if isinstance(world_object, Base):
+                    object_indexes = Coordinates.append_layers(self.tiles_2, object_indexes, world_object.radius, True)
                 world_object.init(self.tiles_2[index.x][index.y] for index in object_indexes)
-                occupied_indexes = self.append_layers((x.coordinates for x in world_object.tiles), safe_radius)
+                occupied_indexes = Coordinates.append_layers(
+                    self.tiles_2, (x.coordinates for x in world_object.tiles), safe_radius
+                )
 
                 indexes.difference_update(occupied_indexes)
                 objects_set.add(world_object)
@@ -252,34 +258,11 @@ class World(Object):
         for region in self.region_set:
             region.stop()
 
-    def on_update(self) -> None:
+    def on_update(self, deta_time: int) -> None:
         # todo: сделать обход, минимизирующий обработку соседних регионов одновременно при параллельной обработке
         for region in self.region_set:
-            region.on_update()
-        self.age += 1
-
-    # todo: оптимизировать, обходя только внешние слои
-    def append_layers(
-            self,
-            indexes: Iterable[Coordinates],
-            layers_number: int,
-            real_neighbours: bool = False
-    ) -> set[Coordinates]:
-        indexes = set(indexes)
-        for _ in range(layers_number):
-            new_indexes = set()
-            for index in indexes:
-                new_indexes.add(index)
-                if real_neighbours:
-                    new_indexes.update(
-                        x.coordinates.fix_to_cycle(self.tiles_2, self.radius_in_regions, self.region_radius)
-                        for x in self.tiles_2[index.x][index.y].neighbours
-                    )
-                else:
-                    for offset in Tile.neighbour_offsets.values():
-                        new_indexes.add(index + offset)
-            indexes = new_indexes
-        return indexes
+            region.on_update(deta_time, self.age, self.regions_2, self.bases)
+        self.age += deta_time
 
     # https://www.redblobgames.com/grids/hexagons/#map-storage
     # todo: добавить сохранение/кэширование карты и соседей для более быстрой загрузки
@@ -325,5 +308,5 @@ class World(Object):
     def get_region_indexes(self, coordinates: Coordinates) -> set[Coordinates]:
         indexes = set()
         indexes.add(coordinates)
-        indexes = self.append_layers(indexes, self.region_radius)
+        indexes = Coordinates.append_layers(self.tiles_2, indexes, self.region_radius)
         return indexes
