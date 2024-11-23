@@ -30,8 +30,6 @@ class Creature(WorldObject):
         self.start_base, self.finish_base = random.sample(bases, 2)
         self.scream_radius = 10
         self.hear_radius = 10
-        self.direction_reset_period = 100
-        self.direction_change_timer = time
         self.last_hear_distance = self.hear_radius + 1
         self.last_hear_coordinates: Coordinates | None = None
         self.last_hear_self_coordinates: Coordinates | None = None

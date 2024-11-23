@@ -223,13 +223,13 @@ class World(Object):
 
             base_indexes = set()
             base_indexes.add(base.center_tile.coordinates)
-            base_indexes = Coordinates.append_layers(self.tiles_2, base_indexes, base.radius, True)
+            base_indexes = Coordinates.append_layers(self.tiles_2, base_indexes, base.radius)
             base.init(self.tiles_2[index.x][index.y] for index in base_indexes)
-            occupied_indexes = Coordinates.append_layers(self.tiles_2, base_indexes, base.radius, True)
+            occupied_indexes = Coordinates.append_layers(self.tiles_2, base_indexes, base.radius)
 
             indexes.difference_update(occupied_indexes)
             self.bases.add(base)
-            center_tile.region.world_objects[Base].add(base)
+            center_tile.region.bases.add(base)
 
         indexes = list(indexes)
         for _ in range(self.population):
@@ -240,7 +240,7 @@ class World(Object):
 
             creature.init(self.tiles_2[index.x][index.y] for index in {center_index})
             self.creatures.add(creature)
-            center_tile.region.world_objects[Creature].add(creature)
+            center_tile.region.creatures.add(creature)
 
     def stop(self) -> None:
         for creature in self.creatures:
@@ -302,5 +302,5 @@ class World(Object):
     def get_region_indexes(self, coordinates: Coordinates) -> set[Coordinates]:
         indexes = set()
         indexes.add(coordinates)
-        indexes = Coordinates.append_layers(self.tiles_2, indexes, self.region_radius)
+        indexes = Coordinates.append_layers(self.tiles_2, indexes, self.region_radius, False)
         return indexes

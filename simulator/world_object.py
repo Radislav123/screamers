@@ -1,3 +1,4 @@
+import random
 from typing import Any, Iterable, TYPE_CHECKING
 
 from arcade.shape_list import create_polygon
@@ -31,7 +32,9 @@ class WorldObject(PhysicalObject):
         self.center_tile = center_tile
         self.tiles: set["Tile"] | None = None
         self.age = 0
-        self.direction: int = 0
+        self.direction: int = random.randint(0, 5)
+        self.direction_reset_period = 25
+        self.direction_change_timer = time
         self.resources = 0
         self.last_acting_time = time
         self.act_period = 5

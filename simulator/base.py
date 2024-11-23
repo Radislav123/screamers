@@ -22,17 +22,25 @@ class Base(WorldObject):
     radius = 5
     is_base = True
 
+    def __init__(self, center_tile: "Tile", time: int) -> None:
+        super().__init__(center_tile, time)
+        self.direction_reset_period = 200
+
     def on_update(self, time: int) -> Any:
         delta_time = time - self.last_acting_time
         self.last_acting_time = time
-        # todo: добавить перемещение к "выбранным" целям
-        self.direction = random.randint(0, 5)
+        if self.direction_change_timer > self.direction_reset_period:
+            self.direction_change_timer = 0
+            self.direction = random.randint(0, 5)
 
         action = self.move
         action.timer += delta_time
 
         if action.timer >= action.period:
-            action.execute(self)
+            move = False
+            if move:
+                action.execute(self)
             action.timer -= action.period
 
         self.age += delta_time
+        self.direction_change_timer += delta_time

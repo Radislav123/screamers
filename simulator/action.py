@@ -2,6 +2,8 @@ from typing import Any, TYPE_CHECKING, Union
 
 
 if TYPE_CHECKING:
+    from simulator.base import Base
+    from simulator.creature import Creature
     from simulator.world_object import WorldObject
 
 
@@ -10,12 +12,12 @@ class Action:
         self.period: float | None = 10
         self.timer: float = 0
 
-    def execute(self, world_object: "WorldObject") -> Any:
+    def execute(self, world_object: Union["Base", "Creature"]) -> Any:
         pass
 
 
 class Move(Action):
-    def execute(self, world_object: "WorldObject") -> Union["WorldObject", None]:
+    def execute(self, world_object: Union["Base", "Creature"]) -> Union["WorldObject", None]:
         projections = {}
         blocker = None
         for tile in world_object.tiles:
@@ -39,7 +41,11 @@ class Move(Action):
             world_object.tiles = set(world_object.projections)
 
             if old_region != new_region:
-                old_region.world_objects[world_object.__class__].remove(world_object)
-                new_region.world_objects[world_object.__class__].add(world_object)
+                if world_object in old_region.bases:
+                    old_region.bases.remove(world_object)
+                    new_region.bases.add(world_object)
+                else:
+                    old_region.creatures.remove(world_object)
+                    new_region.creatures.add(world_object)
 
         return blocker

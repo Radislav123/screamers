@@ -144,24 +144,27 @@ class Coordinates:
 
         return sum(abs(x) for x in (self - other).to_3) // 2
 
-    # todo: оптимизировать, обходя только внешние слои
     @staticmethod
     def append_layers(
             objects_2: Union["Tiles2", "Regions2", None],
             indexes: Iterable["Coordinates"],
             layers_number: int,
-            real_neighbours: bool = False
+            real_neighbours: bool = True
     ) -> set["Coordinates"]:
         indexes = set(indexes)
+        last_layer = indexes
         for _ in range(layers_number):
-            new_indexes = set()
-            for index in indexes:
-                new_indexes.add(index)
+            new_layer = set()
+            for index in last_layer:
                 if real_neighbours:
-                    new_indexes.update(x.coordinates for x in objects_2[index.x][index.y].neighbours)
+                    new_indexes = (x.coordinates for x in objects_2[index.x][index.y].neighbours)
                 else:
-                    new_indexes.update(index + offset for offset in NEIGHBOUR_OFFSETS.values())
-            indexes = new_indexes
+                    new_indexes = (index + offset for offset in NEIGHBOUR_OFFSETS.values())
+                for new_index in new_indexes:
+                    if new_index not in indexes:
+                        new_layer.add(new_index)
+            indexes.update(new_layer)
+            last_layer = new_layer
         return indexes
 
 
