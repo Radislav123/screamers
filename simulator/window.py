@@ -324,6 +324,8 @@ class Window(arcade.Window, ThirdPartyMixin):
         self.tab_container = TextTabContainer(self)
         self.set_tps(self.settings.MAX_TPS)
         self.tps = self.settings.MAX_TPS
+        self.previous_timestamp = time.time()
+        self.timestamp = time.time()
         self.creature_resources = 0
         self.base_resources = 0
         self.world_resources = 0
@@ -483,8 +485,8 @@ class Window(arcade.Window, ThirdPartyMixin):
         if self.creature_resources_tab or self.world_resources_tab:
             self.creature_resources = sum((x.resources for x in self.world.creatures))
 
-    def count_statistics(self, start: float, finish: float) -> None:
-        self.timings["on_update"].append(finish - start)
+    def count_statistics(self) -> None:
+        self.timings["on_update"].append(self.timestamp - self.previous_timestamp)
         timings = self.timings["on_update"]
         try:
             self.tps = int(len(timings) / sum(timings))
@@ -508,7 +510,6 @@ class Window(arcade.Window, ThirdPartyMixin):
             self.graphs.draw()
 
     def on_update(self, _: float) -> None:
-        start = time.time()
         try:
             self.world.on_update(1)
             self.tab_container.update_all()
@@ -518,8 +519,9 @@ class Window(arcade.Window, ThirdPartyMixin):
         finally:
             if self.world.age % self.settings.TAB_UPDATE_PERIOD == 0:
                 self.count_resources()
-            finish = time.time()
-            self.count_statistics(start, finish)
+            self.previous_timestamp = self.timestamp
+            self.timestamp = time.time()
+            self.count_statistics()
 
     def set_tps(self, tps: int) -> None:
         self.desired_tps = tps
