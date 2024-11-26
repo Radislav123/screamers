@@ -4,7 +4,7 @@ import random
 from collections import defaultdict
 from typing import Any, Iterable
 
-from arcade.shape_list import Shape, ShapeElementList
+from arcade import SpriteList
 from sortedcontainers import SortedSet
 
 from core.service.coordinates import Coordinates
@@ -42,16 +42,14 @@ class Map(ProjectionObject):
         self.max_elevation = 90
         # поворот, в градусах
         self.rotation: float | None = None
-        self.center_on_window(width, height)
+        self.centralize()
 
-        self.bases = set[BaseProjection]()
-        self.creatures = set[CreatureProjection]()
-        self.tiles = set[TileProjection]()
-        self.base_polygons = ShapeElementList()
-        self.creature_polygons = ShapeElementList()
-        self.tile_borders = ShapeElementList()
+        self.bases = SpriteList[BaseProjection]()
+        self.creatures = SpriteList[CreatureProjection]()
+        self.tiles = SpriteList[TileProjection]()
 
         self.selected_tiles = set[TileProjection]()
+        self.inited = False
 
     def init(self) -> Any:
         self.init_tiles()
@@ -59,42 +57,22 @@ class Map(ProjectionObject):
         self.init_creatures()
         self.inited = True
 
-    @staticmethod
-    def init_specific(projections: set[ProjectionObject], shapes: ShapeElementList[Shape], *args) -> None:
-        shapes.clear()
-        for projection in projections:
-            if not projection.inited:
-                projection.init(*args)
-            shapes.append(projection.shape)
+    def init_tiles(self) -> None:
+        for tile in self.tiles:
+            tile.init(self.offset_x, self.offset_y, self.coeff, self.tilt_coeff)
 
     def init_bases(self) -> None:
-        self.init_specific(self.bases, self.base_polygons)
+        for base in self.bases:
+            base.position = base.tile_projection.position
+            base.size = base.tile_projection.size
 
     def init_creatures(self) -> None:
-        self.init_specific(self.creatures, self.creature_polygons)
-
-    def init_tiles(self) -> None:
-        self.init_specific(self.tiles, self.tile_borders, self.offset_x, self.offset_y, self.coeff, self.tilt_coeff)
+        for creature in self.creatures:
+            creature.position = creature.tile_projection.position
+            creature.size = creature.tile_projection.size
 
     def reset(self) -> None:
-        self.reset_creatures()
-        self.reset_bases()
-        self.reset_tiles()
-
-    def reset_specific(self, projections: set[ProjectionObject], shapes: ShapeElementList[Shape]) -> None:
-        for projection in projections:
-            projection.inited = False
-        shapes.clear()
         self.inited = False
-
-    def reset_bases(self) -> None:
-        self.reset_specific(self.bases, self.base_polygons)
-
-    def reset_creatures(self) -> None:
-        self.reset_specific(self.creatures, self.creature_polygons)
-
-    def reset_tiles(self) -> None:
-        self.reset_specific(self.tiles, self.tile_borders)
 
     def start(
             self,
@@ -103,24 +81,22 @@ class Map(ProjectionObject):
             tiles: Iterable[TileProjection]
     ) -> None:
         for projection in bases:
-            self.bases.add(projection)
+            self.bases.append(projection)
         for projection in creatures:
-            self.creatures.add(projection)
+            self.creatures.append(projection)
         for projection in tiles:
-            self.tiles.add(projection)
+            self.tiles.append(projection)
 
     def on_draw(self, draw_creatures: bool, draw_bases: bool, draw_tiles: bool) -> None:
         if not self.inited:
             self.init()
 
-        if draw_bases:
-            self.base_polygons.draw()
-            self.reset_bases()
-        if draw_creatures:
-            self.creature_polygons.draw()
-            self.reset_creatures()
         if draw_tiles:
-            self.tile_borders.draw()
+            self.tiles.draw()
+        if draw_bases:
+            self.bases.draw()
+        if draw_creatures:
+            self.creatures.draw()
 
     def change_coeff(self, position_x: int, position_y: int, offset: int) -> None:
         scroll_coeff = 10
@@ -139,7 +115,7 @@ class Map(ProjectionObject):
 
         self.reset()
 
-    def center_on_window(self, width: float, height: float) -> None:
+    def centralize(self) -> None:
         # todo: вызов данного метода должен перерисовывать карту так, чтобы она целиком помещалась на экране
         self.coeff = 10
         self.elevation = 90
@@ -243,14 +219,7 @@ class World(Object):
             center_tile.region.creatures.add(creature)
 
     def stop(self) -> None:
-        for creature in self.creatures:
-            creature.stop()
-        for base in self.bases:
-            base.stop()
-        for tile in self.tile_set:
-            tile.stop()
-        for region in self.region_set:
-            region.stop()
+        pass
 
     def on_update(self, deta_time: int) -> None:
         # todo: сделать обход, минимизирующий обработку соседних регионов одновременно при параллельной обработке

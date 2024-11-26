@@ -1,10 +1,12 @@
 from typing import Any, Self
 
-from arcade.shape_list import Shape
+from arcade import Sprite, color
+from arcade.types import Color
 
 from core.service import settings
 from core.service.logger import Logger
 from core.service.settings import Settings
+from core.service.texture import Texture
 
 
 class ThirdPartyMixin:
@@ -25,24 +27,22 @@ class Object:
     def __lt__(self, other: "Self") -> bool:
         return self.id < other.id
 
-    def init(self, *args, **kwargs) -> Any:
-        pass
 
-    def start(self, *args, **kwargs) -> Any:
-        pass
+class ProjectionObject(Sprite, Object):
+    main_color: Color = color.WHITE
+    border_color: Color = color.BLACK
+    background_color: Color = color.TRANSPARENT_BLACK
 
-    def stop(self, *args, **kwargs) -> Any:
-        pass
-
-
-class ProjectionObject(Object):
     def __init__(self) -> None:
-        super().__init__()
-        self.inited = False
-        self.shape: Shape | None = None
-
-    def on_draw(self, *args, **kwargs) -> Any:
-        pass
+        texture = Texture.create_hexagon(
+            25,
+            2,
+            self.main_color,
+            self.border_color,
+            self.background_color
+        )
+        super().__init__(texture, 1, 0, 0, 0)
+        self.selected = False
 
 
 class PhysicalObject(Object):

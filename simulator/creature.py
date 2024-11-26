@@ -15,9 +15,7 @@ if TYPE_CHECKING:
 
 
 class CreatureProjection(WorldObjectProjection):
-    def __init__(self) -> None:
-        super().__init__()
-        self.color = color.APRICOT
+    main_color = color.APRICOT
 
 
 class Creature(WorldObject):

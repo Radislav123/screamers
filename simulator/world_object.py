@@ -1,9 +1,6 @@
 import random
 from typing import Any, Iterable, TYPE_CHECKING
 
-from arcade.shape_list import create_polygon
-from arcade.types import Color, RGBA
-
 from core.service.object import PhysicalObject, ProjectionObject
 from simulator.action import Move
 
@@ -14,11 +11,6 @@ if TYPE_CHECKING:
 
 class WorldObjectProjection(ProjectionObject):
     tile_projection: "TileProjection"
-    color: Color | RGBA
-
-    def init(self) -> None:
-        self.shape = create_polygon(self.tile_projection.border_points, self.color)
-        self.inited = True
 
 
 class WorldObject(PhysicalObject):

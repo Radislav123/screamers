@@ -11,9 +11,7 @@ if TYPE_CHECKING:
 
 
 class BaseProjection(WorldObjectProjection):
-    def __init__(self) -> None:
-        super().__init__()
-        self.color = color.RED_BROWN
+    main_color = color.RED_BROWN
 
 
 class Base(WorldObject):
@@ -22,6 +20,7 @@ class Base(WorldObject):
     radius = 5
     is_base = True
 
+    # todo: добавить базе крик, чтобы близкопроходящие букашки могли ее найти
     def __init__(self, center_tile: "Tile", time: int) -> None:
         super().__init__(center_tile, time)
         self.direction_reset_period = 200
@@ -37,7 +36,7 @@ class Base(WorldObject):
         action.timer += delta_time
 
         if action.timer >= action.period:
-            move = False
+            move = True
             if move:
                 action.execute(self)
             action.timer -= action.period

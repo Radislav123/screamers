@@ -33,6 +33,7 @@ class Move(Action):
             for new_tile, projection in projections.items():
                 new_tile.object = world_object
                 projection.tile_projection = new_tile.projection
+                projection.position = new_tile.projection.position
 
             old_region = world_object.center_tile.region
             world_object.center_tile = world_object.center_tile.neighbours[world_object.direction]
