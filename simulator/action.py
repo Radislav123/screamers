@@ -44,9 +44,9 @@ class Move(Action):
             if old_region != new_region:
                 if world_object in old_region.bases:
                     old_region.bases.remove(world_object)
-                    new_region.bases.add(world_object)
+                    new_region.bases.append(world_object)
                 else:
                     old_region.creatures.remove(world_object)
-                    new_region.creatures.add(world_object)
+                    new_region.creatures.append(world_object)
 
         return blocker

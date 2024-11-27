@@ -5,7 +5,6 @@ from collections import defaultdict
 from typing import Any, Iterable
 
 from arcade import SpriteList
-from sortedcontainers import SortedSet
 
 from core.service.coordinates import Coordinates
 from core.service.object import Object, ProjectionObject
@@ -17,8 +16,8 @@ from simulator.tile import Tile, TileProjection
 
 type Tiles2 = dict[int, dict[int, Tile]]
 type Regions2 = dict[int, dict[int, Region]]
-type CreatureSet = set[Creature] | SortedSet[Creature]
-type BaseSet = set[Base] | SortedSet[Base]
+type CreatureSet = list[Creature]
+type BaseSet = list[Base]
 
 
 class Map(ProjectionObject):
@@ -180,8 +179,8 @@ class World(Object):
         self.radius_in_regions = radius_in_regions
         self.radius = self.radius_in_regions * (self.region_radius * 2 + 1) + self.region_radius
 
-        self.creatures: CreatureSet = SortedSet()
-        self.bases: BaseSet = SortedSet()
+        self.creatures: CreatureSet = []
+        self.bases: BaseSet = []
         self.tiles_2: Tiles2 = defaultdict(dict)
         Coordinates.tiles_2 = self.tiles_2
         self.tile_set = set[Tile]()
@@ -204,8 +203,8 @@ class World(Object):
             occupied_indexes = Coordinates.append_layers(self.tiles_2, base_indexes, base.radius)
 
             indexes.difference_update(occupied_indexes)
-            self.bases.add(base)
-            center_tile.region.bases.add(base)
+            self.bases.append(base)
+            center_tile.region.bases.append(base)
 
         indexes = list(indexes)
         for _ in range(self.population):
@@ -215,8 +214,8 @@ class World(Object):
             creature = Creature(center_tile, self.age, self.bases)
 
             creature.init(self.tiles_2[index.x][index.y] for index in {center_index})
-            self.creatures.add(creature)
-            center_tile.region.creatures.add(creature)
+            self.creatures.append(creature)
+            center_tile.region.creatures.append(creature)
 
     def stop(self) -> None:
         pass

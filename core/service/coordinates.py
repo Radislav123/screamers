@@ -87,11 +87,10 @@ class Coordinates:
 
     def on_radius(self, radius: int, offset: Self = None) -> bool:
         if offset is None:
-            absolute = self
+            value = max(self.to_3)
         else:
-            absolute = self - offset
-        values = sorted((abs(x) for x in absolute.to_3), reverse = True)
-        return values[0] == radius
+            value = max(abs(self.a - offset.a), abs(self.b - offset.b), abs(self.c - offset.c))
+        return value == radius
 
     def get_distances(self, others: Iterable[Self]) -> dict[Self, float]:
         return {x: self.distance_3(x) for x in others}
@@ -142,7 +141,29 @@ class Coordinates:
     def distance_3(self, other: "Self") -> int:
         """Количество шагов через границы тайлов, чтобы попасть из одного в другой"""
 
-        return sum(abs(x) for x in (self - other).to_3) // 2
+        # частовызываемый метод, поэтому выбрана производительность
+        # return max(abs(self.a - other.a), abs(self.b - other.b), abs(self.c - other.c))
+        a = self.a - other.a
+        if a < 0:
+            a = -a
+        b = self.b - other.b
+        if b < 0:
+            b = -b
+        c = self.c - other.c
+        if c < 0:
+            c = -c
+        if a > b:
+            if a > c:
+                value = a
+            else:
+                value = c
+        else:
+            if b > c:
+                value = b
+            else:
+                value = c
+
+        return value
 
     @staticmethod
     def append_layers(

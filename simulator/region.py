@@ -1,8 +1,6 @@
 import copy
 from typing import Any, Self, TYPE_CHECKING
 
-from sortedcontainers import SortedSet
-
 from core.service.coordinates import Coordinates
 from core.service.object import PhysicalObject, ProjectionObject
 from simulator.creature import Creature
@@ -35,8 +33,8 @@ class Region(PhysicalObject):
 
         self.tiles: set[Tile] | None = None
         self.neighbour_layers: dict[int, set[Self]] = {}
-        self.bases: BaseSet = SortedSet()
-        self.creatures: CreatureSet = SortedSet()
+        self.bases: BaseSet = []
+        self.creatures: CreatureSet = []
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.coordinates})"
@@ -60,9 +58,9 @@ class Region(PhysicalObject):
         for creature in self.creatures:
             creature.on_update(time, self, regions_2, bases)
 
-    def get_creatures(self, radius: int, regions_2: "Regions2") -> set[Creature]:
+    def get_creatures(self, radius: int, regions_2: "Regions2") -> list[Creature]:
         # noinspection PyTypeChecker
-        creatures: set[Creature] = copy.copy(self.creatures)
+        creatures: list[Creature] = copy.copy(self.creatures)
         layers = radius // self.radius + 1
 
         if layers not in self.neighbour_layers:
@@ -74,6 +72,6 @@ class Region(PhysicalObject):
         regions = self.neighbour_layers[layers]
 
         for region in regions:
-            creatures.update(region.creatures)
+            creatures.extend(region.creatures)
 
         return creatures
