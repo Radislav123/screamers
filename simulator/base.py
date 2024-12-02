@@ -28,18 +28,18 @@ class Base(WorldObject):
     def on_update(self, time: int) -> Any:
         delta_time = time - self.last_acting_time
         self.last_acting_time = time
-        if self.direction_change_timer > self.direction_reset_period:
-            self.direction_change_timer = 0
+        if self.direction_reset_timer > self.direction_reset_period:
+            self.direction_reset_timer = 0
             self.direction = random.randint(0, 5)
 
         action = self.move
         action.timer += delta_time
 
         if action.timer >= action.period:
-            move = True
+            move = False
             if move:
                 action.execute(self)
             action.timer -= action.period
 
         self.age += delta_time
-        self.direction_change_timer += delta_time
+        self.direction_reset_timer += delta_time

@@ -562,10 +562,10 @@ class Window(arcade.Window, ThirdPartyMixin):
                 try:
                     tile = self.world.tiles_2[position.x][position.y]
                     get_tile = False
-                    get_neighbours = False
+                    get_neighbours = True
                     get_object = False
                     get_region = False
-                    get_region_neighbours = True
+                    get_region_neighbours = False
                     assert get_tile + get_object + get_region + get_neighbours + get_region_neighbours == 1
 
                     if get_tile:

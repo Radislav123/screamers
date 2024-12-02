@@ -36,7 +36,7 @@ class ProjectionObject(Sprite, Object):
     def __init__(self) -> None:
         texture = Texture.create_hexagon(
             25,
-            2,
+            1,
             self.main_color,
             self.border_color,
             self.background_color
@@ -47,4 +47,4 @@ class ProjectionObject(Sprite, Object):
 
 class PhysicalObject(Object):
     def on_update(self, *args, **kwargs) -> Any:
-        pass
+        raise NotImplementedError()

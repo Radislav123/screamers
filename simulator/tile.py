@@ -1,6 +1,9 @@
 import math
 from typing import Any, TYPE_CHECKING
 
+from arcade import color
+from arcade.types import Color
+
 from core.service.coordinates import Coordinates, NEIGHBOUR_OFFSETS
 from core.service.object import PhysicalObject, ProjectionObject
 from simulator.world_object import WorldObject
@@ -11,7 +14,11 @@ if TYPE_CHECKING:
 
 
 class TileProjection(ProjectionObject):
-    def __init__(self, coordinates: Coordinates) -> None:
+    main_color: Color = color.WHITE
+    selected_color: Color = color.GRAY
+
+    def __init__(self, tile: "Tile", coordinates: Coordinates) -> None:
+        self.tile = tile
         self.real_coordinates = coordinates
         super().__init__()
         self.selected = False
@@ -32,10 +39,12 @@ class TileProjection(ProjectionObject):
 
     def select(self, world_map: "Map") -> None:
         world_map.selected_tiles.add(self)
+        self.color = self.selected_color
         self.selected = True
 
     def deselect(self, world_map: "Map") -> None:
         world_map.selected_tiles.remove(self)
+        self.color = self.main_color
         self.selected = False
 
     def on_click(self, world_map: "Map") -> None:
@@ -58,7 +67,7 @@ class Tile(PhysicalObject):
         self.b = self.coordinates.b
         self.c = self.coordinates.c
 
-        self.projection = TileProjection(self.coordinates)
+        self.projection = TileProjection(self, self.coordinates)
 
         self.object: WorldObject | None = None
         self.region = region
@@ -67,10 +76,10 @@ class Tile(PhysicalObject):
         return f"{self.__class__.__name__}({self.coordinates})"
 
     # https://www.redblobgames.com/grids/hexagons/#wraparound
-    def init(self, tiles_2: "Tiles2", radius_in_regions: int, region_radius: int) -> Any:
+    def init(self, tiles_2: "Tiles2") -> Any:
         self.neighbours = []
 
         for direction, offset in NEIGHBOUR_OFFSETS.items():
-            neighbour_coordinates = (self.coordinates + offset).fix_to_cycle(tiles_2, radius_in_regions, region_radius)
+            neighbour_coordinates = (self.coordinates + offset).fix_to_cycle(tiles_2)
             neighbour = tiles_2[neighbour_coordinates.x][neighbour_coordinates.y]
             self.neighbours.append(neighbour)

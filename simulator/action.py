@@ -1,5 +1,7 @@
 from typing import Any, TYPE_CHECKING, Union
 
+from core.service.object import Object
+
 
 if TYPE_CHECKING:
     from simulator.base import Base
@@ -7,9 +9,10 @@ if TYPE_CHECKING:
     from simulator.world_object import WorldObject
 
 
-class Action:
+class Action(Object):
     def __init__(self) -> None:
-        self.period: float | None = 10
+        super().__init__()
+        self.period: float | None = (self.id % 3) + 3
         self.timer: float = 0
 
     def execute(self, world_object: Union["Base", "Creature"]) -> Any:

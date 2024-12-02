@@ -116,7 +116,7 @@ class Map(ProjectionObject):
 
     def centralize(self) -> None:
         # todo: вызов данного метода должен перерисовывать карту так, чтобы она целиком помещалась на экране
-        self.coeff = 10
+        self.coeff = 5
         self.elevation = 90
         self.tilt_coeff = 1
         self.rotation = 0
@@ -161,6 +161,8 @@ class World(Object):
             seed: int = None
     ) -> None:
         super().__init__()
+        Coordinates.radius_in_regions = radius_in_regions
+        Coordinates.region_radius = region_radius
 
         if seed is None:
             seed = datetime.datetime.now().timestamp()
@@ -221,10 +223,12 @@ class World(Object):
         pass
 
     def on_update(self, deta_time: int) -> None:
+        self.age += deta_time
         # todo: сделать обход, минимизирующий обработку соседних регионов одновременно при параллельной обработке
         for region in self.region_set:
-            region.on_update(deta_time, self.age, self.regions_2, self.bases)
-        self.age += deta_time
+            region.on_update(self.age, self.regions_2, self.bases)
+        for region in self.region_set:
+            region.after_update()
 
     # https://www.redblobgames.com/grids/hexagons/#map-storage
     # todo: добавить сохранение/кэширование карты и соседей для более быстрой загрузки
@@ -254,10 +258,10 @@ class World(Object):
             region.tiles = region_tiles
 
         for region in self.region_set:
-            region.init(self.radius_in_regions, self.tiles_2, self.regions_2)
+            region.init(self.tiles_2, self.regions_2)
 
         for tile in self.tile_set:
-            tile.init(self.tiles_2, self.radius_in_regions, self.region_radius)
+            tile.init(self.tiles_2)
 
     def add_tile(self, tile: Tile) -> None:
         self.tiles_2[tile.x][tile.y] = tile

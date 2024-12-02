@@ -26,7 +26,9 @@ class WorldObject(PhysicalObject):
         self.age = 0
         self.direction: int = random.randint(0, 5)
         self.direction_reset_period = 25
-        self.direction_change_timer = time
+        self.direction_reset_timer = time
+        self.direction_correct_period = 5
+        self.direction_correct_timer = time
         self.resources = 0
         self.last_acting_time = time
         self.act_period = 5
