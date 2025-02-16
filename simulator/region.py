@@ -36,16 +36,16 @@ class Region(PhysicalObject):
         self.bases: BaseSet = []
         self.creatures: CreatureSet = []
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return f"{self.__class__.__name__}({self.coordinates})"
 
     def on_update(self, time: int, regions_2: "Regions2", bases: "BaseSet") -> Any:
         for base in self.bases:
             if time % base.act_period == base.act_remainder:
-                base.on_update(time)
+                base.on_update(time, regions_2)
         for creature in self.creatures:
             if time % creature.act_period == creature.act_remainder:
-                creature.on_update(time, self, regions_2, bases)
+                creature.on_update(time, regions_2, bases)
 
     def after_update(self) -> Any:
         pass
@@ -57,10 +57,7 @@ class Region(PhysicalObject):
             self.projections[tile] = projection
             projection.tile_projection = tile.projection
 
-        first_mirror = self.coordinates.get_first_mirror(self.coordinates)
-        first_mirror_fixed = first_mirror.fix_to_cycle(tiles_2)
-        mirror_centers = self.coordinates.get_mirror_centers(first_mirror_fixed, self.coordinates)
-        neighbour_indexes = [index.fix_to_cycle(tiles_2) for index in mirror_centers]
+        neighbour_indexes = [index.fix_to_cycle(tiles_2) for index in self.coordinates.get_region_neighbour_centers()]
         self.neighbours = [regions_2[index.x][index.y] for index in neighbour_indexes]
 
     def get_creatures(self, radius: int, regions_2: "Regions2") -> list[Creature]:

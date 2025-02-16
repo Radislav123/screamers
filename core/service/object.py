@@ -24,6 +24,12 @@ class Object:
         self.id = self.counter
         self.__class__.counter += 1
 
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}({self.id})"
+
+    def __repr__(self) -> str:
+        return str(self)
+
     def __lt__(self, other: "Self") -> bool:
         return self.id < other.id
 

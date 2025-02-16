@@ -152,7 +152,7 @@ class Map(ProjectionObject):
 class World(Object):
     def __init__(
             self,
-            radius_in_regions: int,
+            world_radius: int,
             region_radius: int,
             population: int,
             bases_number: int,
@@ -161,7 +161,7 @@ class World(Object):
             seed: int = None
     ) -> None:
         super().__init__()
-        Coordinates.radius_in_regions = radius_in_regions
+        Coordinates.world_radius = world_radius
         Coordinates.region_radius = region_radius
 
         if seed is None:
@@ -178,8 +178,8 @@ class World(Object):
         Region.radius = region_radius
         self.region_radius = Region.radius
         # количество радиусов региона в радиусе мира
-        self.radius_in_regions = radius_in_regions
-        self.radius = self.radius_in_regions * (self.region_radius * 2 + 1) + self.region_radius
+        self.world_radius = world_radius
+        self.radius = self.world_radius * (self.region_radius * 2 + 1) + self.region_radius
 
         self.creatures: CreatureSet = []
         self.bases: BaseSet = []
@@ -235,7 +235,7 @@ class World(Object):
     def prepare(self) -> None:
         offset = self.region_radius * 2 + 1
         region_centers = [Coordinates(0, 0)]
-        for layer in range(1, self.radius_in_regions + 1):
+        for layer in range(1, self.world_radius + 1):
             for number in range(layer):
                 x = self.region_radius * layer + number * (self.region_radius + 1)
                 y = -(layer * offset - number * self.region_radius)

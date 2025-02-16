@@ -12,7 +12,7 @@ class Settings(Singleton):
         self.CONSOLE_LOG_LEVEL = logging.DEBUG
         self.FILE_LOG_LEVEL = logging.DEBUG
 
-        self.MAX_TPS = 1000
+        self.MAX_TPS = 100
         self.TIMINGS_LENGTH = 100
         self.TAB_UPDATE_PERIOD = 10
         self.WORLD_AGE_TAB_UPDATE_PERIOD = 1

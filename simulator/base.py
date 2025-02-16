@@ -8,6 +8,7 @@ from simulator.world_object import WorldObject, WorldObjectProjection
 
 if TYPE_CHECKING:
     from simulator.tile import Tile
+    from simulator.world import Regions2
 
 
 class BaseProjection(WorldObjectProjection):
@@ -20,17 +21,16 @@ class Base(WorldObject):
     radius = 5
     is_base = True
 
-    # todo: добавить базе крик, чтобы близкопроходящие букашки могли ее найти
+    # todo: добавить базе крик, чтобы близкопроходящие букашки могли ее найти, если база движется
     def __init__(self, center_tile: "Tile", time: int) -> None:
         super().__init__(center_tile, time)
         self.direction_reset_period = 200
+        self.scream_radius = 10
 
-    def on_update(self, time: int) -> Any:
+    def on_update(self, time: int, regions_2: "Regions2") -> Any:
         delta_time = time - self.last_acting_time
         self.last_acting_time = time
-        if self.direction_reset_timer > self.direction_reset_period:
-            self.direction_reset_timer = 0
-            self.direction = random.randint(0, 5)
+        self.direction = random.randint(0, 5)
 
         action = self.move
         action.timer += delta_time
@@ -42,4 +42,3 @@ class Base(WorldObject):
             action.timer -= action.period
 
         self.age += delta_time
-        self.direction_reset_timer += delta_time

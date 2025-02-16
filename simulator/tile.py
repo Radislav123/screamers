@@ -23,7 +23,7 @@ class TileProjection(ProjectionObject):
         super().__init__()
         self.selected = False
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return f"{self.__class__.__name__}{self.real_coordinates}"
 
     def init(self, offset_x: float, offset_y: float, coeff: float, tilt_coeff: float) -> None:
@@ -72,7 +72,7 @@ class Tile(PhysicalObject):
         self.object: WorldObject | None = None
         self.region = region
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return f"{self.__class__.__name__}({self.coordinates})"
 
     # https://www.redblobgames.com/grids/hexagons/#wraparound
