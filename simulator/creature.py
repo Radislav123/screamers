@@ -91,11 +91,9 @@ class Creature(WorldObject):
             self.set_direction()
         blocker = self.move.execute(self)
         # Достиг финальной базы
-        temp = False
         if blocker == self.finish_base:
             self.bases_reach_counter[self.finish_base] = -delta_time
             self.start_base = self.finish_base
-            temp = True
             while len(bases) > 1 and self.finish_base == self.start_base:
                 self.finish_base = random.choice(bases)
             self.turn_around()
@@ -112,13 +110,13 @@ class Creature(WorldObject):
                 self.direction = old_direction
         self.path_vector += self.center_tile.coordinates - old_coordinates
 
-        self.cry(regions_2, temp)
+        self.cry(regions_2)
         self.age += delta_time
         self.bases_reach_counter = {base: counter + delta_time for base, counter in self.bases_reach_counter.items()}
 
-    def cry(self, regions_2: "Regions2", temp: bool) -> None:
+    def cry(self, regions_2: "Regions2") -> None:
         for other in self.center_tile.region.get_creatures(self.scream_radius, regions_2):
-            if self is not other:
+            if self.id != other.id:
                 crier_distance = self.center_tile.coordinates.distance_3(other.center_tile.coordinates, True)
                 base_distance = crier_distance + self.bases_reach_counter[other.finish_base]
                 if (crier_distance <= other.hear_radius and

@@ -1,4 +1,3 @@
-import copy
 from typing import Iterable, Self, TYPE_CHECKING, Union
 
 
@@ -9,7 +8,8 @@ if TYPE_CHECKING:
 class Coordinates:
     world_radius: int = None
     region_radius: int = None
-    mirror_centers: dict[tuple[int, int, int], list[Self]] = {}
+    mirror_centers_cache: dict[tuple[int, int], list[Self]] = {}
+    distance_3_cache: dict[tuple[int, int, bool], int] = {}
     __slots__ = ["x", "y", "a", "b", "c", "to_2", "to_3"]
 
     def __init__(self, x: int, y: int) -> None:
@@ -60,7 +60,7 @@ class Coordinates:
         self.to_3 = ABSOLUTE_CENTER.to_3
 
     def copy(self) -> Self:
-        return copy.deepcopy(self)
+        return self.__class__(self.x, self.y)
 
     @classmethod
     def from_2(cls, x: int, y: int) -> Self:
@@ -129,8 +129,8 @@ class Coordinates:
     def get_mirror_centers(cls, offset: Self = None) -> list[Self]:
         if offset is None:
             offset = ABSOLUTE_CENTER
-        cache_key = (cls.region_radius, offset.x, offset.y)
-        if cache_key not in cls.mirror_centers:
+        cache_key = (offset.x, offset.y)
+        if cache_key not in cls.mirror_centers_cache:
             first_y_offset = cls.region_radius * 2 + 1
             first_x = -cls.region_radius + cls.world_radius + offset.x
             first_y = first_y_offset + cls.world_radius * (first_y_offset + cls.region_radius) + offset.y
@@ -141,8 +141,8 @@ class Coordinates:
             for index in range(5):
                 instance = instance.rotate_60()
                 centers.append(instance + offset)
-            cls.mirror_centers[cache_key] = centers
-        centers = cls.mirror_centers[cache_key]
+            cls.mirror_centers_cache[cache_key] = centers
+        centers = cls.mirror_centers_cache[cache_key]
 
         return centers
 
@@ -180,34 +180,22 @@ class Coordinates:
         # return math.dist(self.to_2, other.to_2)
         raise NotImplementedError()
 
-    # todo: добавить кэширование
     def distance_3(self, other: "Self", cycled: bool = False) -> int:
         """Количество шагов через границы тайлов, чтобы попасть из одного в другой"""
 
-        if cycled:
-            other_mirrors = self.get_mirror_centers(other)
-            distances = self.get_sorted_distances(other_mirrors)
-            value = min(distances[0][1], self.distance_3(other, False))
-        else:
-            a = self.a - other.a
-            if a < 0:
-                a = -a
-            b = self.b - other.b
-            if b < 0:
-                b = -b
-            c = self.c - other.c
-            if c < 0:
-                c = -c
-            if a > b:
-                if a > c:
-                    value = a
-                else:
-                    value = c
+        x = other.x - self.x
+        y = other.y - self.y
+
+        cache_key = (x, y, cycled)
+        if cache_key not in self.distance_3_cache:
+            if cycled:
+                other_mirrors = self.get_mirror_centers(other)
+                distances = self.get_sorted_distances(other_mirrors)
+                value = min(distances[0][1], self.distance_3(other, False))
             else:
-                if b > c:
-                    value = b
-                else:
-                    value = c
+                value = (abs(self.a - other.a) + abs(self.b - other.b) + abs(self.c - other.c)) // 2
+            self.distance_3_cache[cache_key] = value
+        value = self.distance_3_cache[cache_key]
 
         return value
 

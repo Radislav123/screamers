@@ -116,7 +116,7 @@ class Map(ProjectionObject):
 
     def centralize(self) -> None:
         # todo: вызов данного метода должен перерисовывать карту так, чтобы она целиком помещалась на экране
-        self.coeff = 5
+        self.coeff = 4
         self.elevation = 90
         self.tilt_coeff = 1
         self.rotation = 0
