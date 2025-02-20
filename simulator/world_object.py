@@ -27,7 +27,7 @@ class WorldObject(PhysicalObject):
         self.direction: int = random.randint(0, 5)
         self.resources = 0
         self.last_acting_time = time
-        self.act_period = 5
+        self.act_period = 10
         self.act_remainder = self.id % self.act_period
 
         self.move = Move()

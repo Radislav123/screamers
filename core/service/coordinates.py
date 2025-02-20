@@ -159,12 +159,19 @@ class Coordinates:
             instance = self - closest
         return instance
 
-    def rotate_60(self, offset: Self = None) -> Self:
-        if offset is None:
-            instance = self.__class__.from_3(-self.b, -self.c, -self.a)
+    def rotate_60(self, offset: Self = None, clockwise: bool = True) -> Self:
+        if clockwise:
+            if offset is None:
+                instance = self.__class__.from_3(-self.b, -self.c, -self.a)
+            else:
+                absolute = self - offset
+                instance = self.__class__.from_3(-absolute.b, -absolute.c, -absolute.a) + offset
         else:
-            absolute = self - offset
-            instance = self.__class__.from_3(-absolute.b, -absolute.c, -absolute.a) + offset
+            if offset is None:
+                instance = self.__class__.from_3(-self.c, -self.a, -self.b)
+            else:
+                absolute = self - offset
+                instance = self.__class__.from_3(-absolute.c, -absolute.a, -absolute.b) + offset
         return instance
 
     def rotate_180(self, offset: Self = None) -> Self:

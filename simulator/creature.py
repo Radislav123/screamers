@@ -42,18 +42,15 @@ class Creature(WorldObject):
         self.heard_distance: int | None = None
         self.heard_tile: Union["Tile", None] = None
 
-    def set_direction(self) -> None:
-        if self.heard_distance is not None:
-            self.reference_direction_vector = self.heard_tile.coordinates - self.center_tile.coordinates
-            self.direction_vector = self.reference_direction_vector.copy()
-            self.path_vector.reset()
-            self.heard_distance = None
-            self.heard_tile = None
-        if (abs(self.path_vector.a) >= abs(self.direction_vector.a)
-                or abs(self.path_vector.b) >= abs(self.direction_vector.b)
-                or abs(self.path_vector.c) >= abs(self.direction_vector.c)):
-            self.direction_vector += self.reference_direction_vector
+        # некоторая доля существ является скаутами, чтобы находить базы, так как иначе базы теряются при движении
+        if self.id % 100 > 80:
+            self.is_scout = True
+        else:
+            self.is_scout = False
 
+        self.change_direction_period = 1
+
+    def calculate_direction(self) -> None:
         a = self.direction_vector.a - self.path_vector.a
         b = self.direction_vector.b - self.path_vector.b
         c = self.direction_vector.c - self.path_vector.c
@@ -82,13 +79,28 @@ class Creature(WorldObject):
         if random.randint(0, 99) > 95:
             self.direction = (self.direction + random.choice((-1, 1))) % 6
 
-    def on_update(self, time: int, regions_2: "Regions2", bases: "BaseSet") -> Any:
-        delta_time = time - self.last_acting_time
-        self.last_acting_time = time
+    def calculate_vector(self) -> None:
+        if self.heard_distance is not None:
+            self.reference_direction_vector = self.heard_tile.coordinates - self.center_tile.coordinates
+            self.direction_vector = self.reference_direction_vector.copy()
+            self.path_vector.reset()
+            self.heard_distance = None
+            self.heard_tile = None
+        if (abs(self.path_vector.a) >= abs(self.direction_vector.a)
+                or abs(self.path_vector.b) >= abs(self.direction_vector.b)
+                or abs(self.path_vector.c) >= abs(self.direction_vector.c)):
+            self.direction_vector += self.reference_direction_vector
 
-        old_coordinates = self.center_tile.coordinates
-        if time % 1 == 0:
-            self.set_direction()
+    def calculate_vector_scout(self) -> None:
+        if (abs(self.path_vector.a) >= abs(self.direction_vector.a)
+                or abs(self.path_vector.b) >= abs(self.direction_vector.b)
+                or abs(self.path_vector.c) >= abs(self.direction_vector.c)):
+            self.direction_vector += self.reference_direction_vector
+
+    def act(self, time: int, delta_time: int, bases: "BaseSet") -> None:
+        if time % self.change_direction_period == 0:
+            self.calculate_vector()
+            self.calculate_direction()
         blocker = self.move.execute(self)
         # Достиг финальной базы
         if blocker == self.finish_base:
@@ -97,6 +109,7 @@ class Creature(WorldObject):
             while len(bases) > 1 and self.finish_base == self.start_base:
                 self.finish_base = random.choice(bases)
             self.turn_around()
+        # todo: убрать попытки обойти
         # Попытка обойти справа
         elif blocker is not None:
             turn_around = True
@@ -108,6 +121,27 @@ class Creature(WorldObject):
                 self.direction = (self.direction + 1) % 6
                 self.move.execute(self)
                 self.direction = old_direction
+
+    def act_scout(self, time: int, delta_time: int) -> None:
+        if time % self.change_direction_period == 0:
+            self.calculate_vector_scout()
+            self.calculate_direction()
+        blocker = self.move.execute(self)
+        # Достиг любой базы
+        if blocker is not None and blocker.is_base:
+            self.bases_reach_counter[blocker] = -delta_time
+            # todo: добавить выбор между поворотом направо и налево, чтобы было похоже на отражение луча, а не разворот
+            self.turn_around()
+
+    def on_update(self, time: int, regions_2: "Regions2", bases: "BaseSet") -> Any:
+        delta_time = time - self.last_acting_time
+        self.last_acting_time = time
+
+        old_coordinates = self.center_tile.coordinates
+        if self.is_scout:
+            self.act_scout(time, delta_time)
+        else:
+            self.act(time, delta_time, bases)
         self.path_vector += self.center_tile.coordinates - old_coordinates
 
         self.cry(regions_2)
@@ -128,6 +162,13 @@ class Creature(WorldObject):
         self.direction = (self.direction + 1) % 6
         if self.reference_direction_vector:
             self.reference_direction_vector = self.reference_direction_vector.rotate_60()
+            self.direction_vector = self.reference_direction_vector.copy()
+            self.path_vector.reset()
+
+    def turn_left(self) -> None:
+        self.direction = (self.direction + 5) % 6
+        if self.reference_direction_vector:
+            self.reference_direction_vector = self.reference_direction_vector.rotate_60(clockwise = False)
             self.direction_vector = self.reference_direction_vector.copy()
             self.path_vector.reset()
 

@@ -18,10 +18,9 @@ class BaseProjection(WorldObjectProjection):
 class Base(WorldObject):
     projection_class = BaseProjection
     projections: dict["Tile", projection_class]
-    radius = 5
+    radius = 10
     is_base = True
 
-    # todo: добавить базе крик, чтобы близкопроходящие букашки могли ее найти, если база движется
     def __init__(self, center_tile: "Tile", time: int) -> None:
         super().__init__(center_tile, time)
         self.direction_reset_period = 200
@@ -36,6 +35,8 @@ class Base(WorldObject):
         action.timer += delta_time
 
         if action.timer >= action.period:
+            # todo: базы должны двигаться медленнее, плавнее и периодически выбирать себе направление,
+            #  чтобы движение не было столь хаотичным
             move = False
             if move:
                 action.execute(self)
