@@ -340,7 +340,7 @@ class Window(arcade.Window, ThirdPartyMixin):
         self.timings = defaultdict(lambda: deque(maxlen = self.settings.TIMINGS_LENGTH))
 
     def start(self) -> None:
-        self.world = World(10, 5, 300, 5, self.width, self.height)
+        self.world = World(10, 5, 500, 5, self.width, self.height)
         self.world.start()
 
         creature_projections = (y for x in self.world.creatures for y in x.projections.values())

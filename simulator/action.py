@@ -16,7 +16,7 @@ class Action(Object):
         self.timer: float = 0
 
     def execute(self, world_object: Union["Base", "Creature"]) -> Any:
-        pass
+        raise NotImplementedError()
 
 
 class Move(Action):

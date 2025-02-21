@@ -43,7 +43,7 @@ class Creature(WorldObject):
         self.heard_tile: Union["Tile", None] = None
 
         # некоторая доля существ является скаутами, чтобы находить базы, так как иначе базы теряются при движении
-        if self.id % 100 > 80:
+        if self.id % 100 > 90:
             self.is_scout = True
         else:
             self.is_scout = False
@@ -79,6 +79,14 @@ class Creature(WorldObject):
         if random.randint(0, 99) > 95:
             self.direction = (self.direction + random.choice((-1, 1))) % 6
 
+    def reflect_direction(self) -> None:
+        if self.center_tile.neighbours[(self.direction + 1) % 6].object is None:
+            self.turn_right()
+        elif self.center_tile.neighbours[(self.direction + 5) % 6].object is None:
+            self.turn_left()
+        elif self.center_tile.neighbours[(self.direction + 3) % 6].object is None:
+            self.turn_around()
+
     def calculate_vector(self) -> None:
         if self.heard_distance is not None:
             self.reference_direction_vector = self.heard_tile.coordinates - self.center_tile.coordinates
@@ -109,18 +117,21 @@ class Creature(WorldObject):
             while len(bases) > 1 and self.finish_base == self.start_base:
                 self.finish_base = random.choice(bases)
             self.turn_around()
-        # todo: убрать попытки обойти
-        # Попытка обойти справа
+        # Попытка обойти
         elif blocker is not None:
-            turn_around = True
-            if turn_around:
-                self.turn_around()
-                self.move.execute(self)
+            real_direction = self.direction
+            if self.center_tile.neighbours[temp_direction := (self.direction + 1) % 6].object is None:
+                pass
+            elif self.center_tile.neighbours[temp_direction := (self.direction + 5) % 6].object is None:
+                pass
+            elif self.center_tile.neighbours[temp_direction := (self.direction + 3) % 6].object is None:
+                pass
             else:
-                old_direction = self.direction
-                self.direction = (self.direction + 1) % 6
+                temp_direction = None
+            if temp_direction is not None:
+                self.direction = temp_direction
                 self.move.execute(self)
-                self.direction = old_direction
+                self.direction = real_direction
 
     def act_scout(self, time: int, delta_time: int) -> None:
         if time % self.change_direction_period == 0:
@@ -130,8 +141,7 @@ class Creature(WorldObject):
         # Достиг любой базы
         if blocker is not None and blocker.is_base:
             self.bases_reach_counter[blocker] = -delta_time
-            # todo: добавить выбор между поворотом направо и налево, чтобы было похоже на отражение луча, а не разворот
-            self.turn_around()
+            self.reflect_direction()
 
     def on_update(self, time: int, regions_2: "Regions2", bases: "BaseSet") -> Any:
         delta_time = time - self.last_acting_time

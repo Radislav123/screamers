@@ -69,6 +69,7 @@ class Tile(PhysicalObject):
 
         self.projection = TileProjection(self, self.coordinates)
 
+        # объект, занимающий этот тайл
         self.object: WorldObject | None = None
         self.region = region
 
